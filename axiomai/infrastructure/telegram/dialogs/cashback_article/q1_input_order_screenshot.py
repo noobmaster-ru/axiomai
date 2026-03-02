@@ -80,7 +80,7 @@ async def on_input_order_screenshot(
     )
 
 
-async def _process_order_screenshot_background(  # noqa: PLR0915
+async def _process_order_screenshot_background(  # noqa: PLR0915, C901
     messages: list[MessageData],
     bot: Bot,
     bg_manager: DialogManager,
@@ -118,7 +118,7 @@ async def _process_order_screenshot_background(  # noqa: PLR0915
     pending_nm_ids = get_pending_nm_ids_for_step(buyers, step="check_order")
     pending_articles = [a for a in articles if a.nm_id in pending_nm_ids]
 
-    result: str | None | ClassifyOrderResult = None
+    result: ClassifyOrderResult | None = None
     try:
         result = await openai_gateway.classify_order_screenshot(
             photo_url=photo_url,
@@ -129,7 +129,11 @@ async def _process_order_screenshot_background(  # noqa: PLR0915
         await bot.send_message(
             chat_id, "Попробуйте отправить фото сюда еще раз", business_connection_id=business_connection_id
         )
-        result = "classify order screenshot error"
+        result = ClassifyOrderResult(
+            is_order=False,
+            orders=[],
+            cancel_reason="Ошибка при распознавании скриншота заказа"
+        )
         return
     finally:
         await add_to_chat_history(di_container, chat_id, cabinet.id, "[Скрин заказа]", json.dumps(result))
@@ -141,10 +145,10 @@ async def _process_order_screenshot_background(  # noqa: PLR0915
     )
     await asyncio.sleep(config.delay_between_bot_messages)
 
-    if not result["is_order"] or not result["nm_id"]:
+    if not result["is_order"] or not result["orders"]:
         cancel_reason = result["cancel_reason"]
         if cancel_reason is None:
-            cancel_reason = "Скриншот заказа не прошёл проверку"
+            cancel_reason = "Ошибка при распознавании скриншота заказа"
 
         chat_link = f"https://t.me/{username}" if username else None
         user_ref = f'<a href="{chat_link}">@{username}</a>' if username else fullname
@@ -159,47 +163,59 @@ async def _process_order_screenshot_background(  # noqa: PLR0915
         )
         return
 
-    if not result["price"]:
-        chat_link = f"https://t.me/{username}" if username else None
-        user_ref = f'<a href="{chat_link}">@{username}</a>' if username else fullname
-        await bot.send_photo(
-            chat_id=cabinet.business_account_id,
-            photo=URLInputFile(photo_url),
-            caption=(
-                f"⚠️ У пользователя {user_ref} ошибка со скрином заказа — не видно цену товара\n\n"
-                + (f'<a href="{chat_link}">Перейти к переписке</a>' if chat_link else "")
-            ),
-        )
-        return
+    accepted_articles = []
+    for order in result["orders"]:
+        nm_id = order["nm_id"]
+        price = order["price"]
 
-    buyer_id = next((b.id for b in buyers if b.nm_id == result["nm_id"]), None)
-    if not buyer_id:
-        logger.error("buyer not found for nm_id %s, chat_id %s", result["nm_id"], chat_id)
+        if not price:
+            chat_link = f"https://t.me/{username}" if username else None
+            user_ref = f'<a href="{chat_link}">@{username}</a>' if username else fullname
+            await bot.send_photo(
+                chat_id=cabinet.business_account_id,
+                photo=URLInputFile(photo_url),
+                caption=(
+                    f"⚠️ У пользователя {user_ref} ошибка со скрином заказа — не видно цену товара\n\n"
+                    + (f'<a href="{chat_link}">Перейти к переписке</a>' if chat_link else "")
+                ),
+            )
+            continue
+
+        buyer_id = next((b.id for b in buyers if b.nm_id == nm_id), None)
+        if not buyer_id:
+            logger.error("buyer not found for nm_id %s, chat_id %s", nm_id, chat_id)
+            continue
+
+        async with di_container() as r_container:
+            buyer_gateway = await r_container.get(BuyerGateway)
+            cabinet_gateway = await r_container.get(CabinetGateway)
+            transaction_manager = await r_container.get(TransactionManager)
+
+            cabinet = await cabinet_gateway.get_cabinet_by_business_connection_id(business_connection_id)
+            buyer = await buyer_gateway.get_buyer_by_id(buyer_id)
+            buyer.is_ordered = True
+            buyer.amount = price
+            cabinet.leads_balance = cabinet.leads_balance - 1 if cabinet.leads_balance >= 1 else 0
+
+            await transaction_manager.commit()
+
+        article = next((a for a in articles if a.nm_id == nm_id), None)
+        if article:
+            accepted_articles.append(article)
+
+    if not accepted_articles:
         return
 
     async with di_container() as r_container:
         buyer_gateway = await r_container.get(BuyerGateway)
         cabinet_gateway = await r_container.get(CabinetGateway)
-        transaction_manager = await r_container.get(TransactionManager)
-
         cabinet = await cabinet_gateway.get_cabinet_by_business_connection_id(business_connection_id)
-        buyer = await buyer_gateway.get_buyer_by_id(buyer_id)
-        buyer.is_ordered = True
-        buyer.amount = result["price"]
-        cabinet.leads_balance = cabinet.leads_balance - 1 if cabinet.leads_balance >= 1 else 0
-
-        await transaction_manager.commit()
-
         buyers = await buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(chat_id, cabinet.id)
 
-    article = next((a for a in articles if a.nm_id == result["nm_id"]), None)
-
-    if not article:
-        raise ValueError(f"Article in result {result["nm_id"]} not found in {pending_nm_ids}")
-
+    titles = ", ".join(f"<b>{a.title}</b>" for a in accepted_articles)
     await bot.send_message(
         chat_id,
-        f"✅ Скриншот заказа для <b>{article.title}</b> принят!",
+        f"✅ Скриншот заказа для {titles} принят!",
         business_connection_id=business_connection_id,
     )
 

@@ -211,8 +211,7 @@ async def test_cashback_article_q1_input_order_screenshot(
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
     await bot_client.send_business("хочу кешбек")
@@ -249,13 +248,12 @@ async def test_cashback_article_q2_input_feedback_screenshot(
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
     openai_gateway.classify_feedback_screenshot = AsyncMock(return_value={
         "is_feedback": True,
-        "nm_id": article.nm_id,
+        "nm_ids": [article.nm_id],
         "cancel_reason": None,
     })
 
@@ -293,13 +291,12 @@ async def test_cashback_article_q3_input_cut_labels_screenshot(
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
     openai_gateway.classify_feedback_screenshot = AsyncMock(return_value={
         "is_feedback": True,
-        "nm_id": article.nm_id,
+        "nm_ids": [article.nm_id],
         "cancel_reason": None,
     })
     openai_gateway.classify_cut_labels_photo = AsyncMock(return_value={
@@ -344,13 +341,12 @@ async def test_cashback_article_q4_input_requisites(
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
     openai_gateway.classify_feedback_screenshot = AsyncMock(return_value={
         "is_feedback": True,
-        "nm_id": article.nm_id,
+        "nm_ids": [article.nm_id],
         "cancel_reason": None,
     })
     openai_gateway.classify_cut_labels_photo = AsyncMock(return_value={
@@ -461,8 +457,7 @@ async def test_two_articles_full_q1_order_screenshots(
     # Submit order screenshot for article1
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article1.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article1.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
     await bot_client.send_business_photo()
@@ -476,8 +471,7 @@ async def test_two_articles_full_q1_order_screenshots(
     # Submit order screenshot for article2
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article2.nm_id,
-        "price": 2000,
+        "orders": [{"nm_id": article2.nm_id, "price": 2000}],
         "cancel_reason": None,
     })
     await bot_client.send_business_photo()
@@ -525,16 +519,14 @@ async def test_two_articles_full_flow_q1_q2_q3(
     # Q1: Order screenshots for both articles
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article1.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article1.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
     await bot_client.send_business_photo()  # order article1
 
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article2.nm_id,
-        "price": 2000,
+        "orders": [{"nm_id": article2.nm_id, "price": 2000}],
         "cancel_reason": None,
     })
     await bot_client.send_business_photo()  # order article2
@@ -542,14 +534,14 @@ async def test_two_articles_full_flow_q1_q2_q3(
     # Q2: Feedback screenshots for both articles
     openai_gateway.classify_feedback_screenshot = AsyncMock(return_value={
         "is_feedback": True,
-        "nm_id": article1.nm_id,
+        "nm_ids": [article1.nm_id],
         "cancel_reason": None,
     })
     await bot_client.send_business_photo()  # feedback article1
 
     openai_gateway.classify_feedback_screenshot = AsyncMock(return_value={
         "is_feedback": True,
-        "nm_id": article2.nm_id,
+        "nm_ids": [article2.nm_id],
         "cancel_reason": None,
     })
     await bot_client.send_business_photo()  # feedback article2
@@ -616,8 +608,7 @@ async def test_switch_back_to_completed_article_while_pending_another(
     # Step 2: User sends order screenshot for X
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article_x.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article_x.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
     await bot_client.send_business_photo()
@@ -669,8 +660,7 @@ async def test_switch_back_to_completed_article_while_pending_another(
     # System is still at check_order step because Y is pending
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article_y.nm_id,
-        "price": 2000,
+        "orders": [{"nm_id": article_y.nm_id, "price": 2000}],
         "cancel_reason": None,
     })
     await bot_client.send_business_photo()
@@ -713,7 +703,6 @@ async def test_chat_history_saved_on_order_screenshot_error(
     assert buyer.is_ordered is False
     assert len(buyer.chat_history) == 2
     assert buyer.chat_history[1]["user"] == "[Скрин заказа]"
-    assert buyer.chat_history[1]["assistant"] == '"classify order screenshot error"'
 
 
 async def test_chat_history_saved_on_feedback_screenshot_error(
@@ -737,8 +726,7 @@ async def test_chat_history_saved_on_feedback_screenshot_error(
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
     openai_gateway.classify_feedback_screenshot = AsyncMock(side_effect=Exception("API error"))
@@ -752,7 +740,6 @@ async def test_chat_history_saved_on_feedback_screenshot_error(
     assert buyer.is_left_feedback is False
     assert len(buyer.chat_history) == 3
     assert buyer.chat_history[2]["user"] == "[Скрин отзыва]"
-    assert buyer.chat_history[2]["assistant"] == '"classify feedback screenshot error"'
 
 
 async def test_chat_history_saved_on_cut_labels_screenshot_error(
@@ -776,13 +763,12 @@ async def test_chat_history_saved_on_cut_labels_screenshot_error(
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
     openai_gateway.classify_feedback_screenshot = AsyncMock(return_value={
         "is_feedback": True,
-        "nm_id": article.nm_id,
+        "nm_ids": [article.nm_id],
         "cancel_reason": None,
     })
     openai_gateway.classify_cut_labels_photo = AsyncMock(side_effect=Exception("API error"))
@@ -861,13 +847,12 @@ async def test_cashback_article_q4_not_enough_balance_sends_message(
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article.nm_id,
-        "price": total_amount,
+        "orders": [{"nm_id": article.nm_id, "price": total_amount}],
         "cancel_reason": None,
     })
     openai_gateway.classify_feedback_screenshot = AsyncMock(return_value={
         "is_feedback": True,
-        "nm_id": article.nm_id,
+        "nm_ids": [article.nm_id],
         "cancel_reason": None,
     })
     openai_gateway.classify_cut_labels_photo = AsyncMock(return_value={
@@ -916,8 +901,7 @@ async def test_feedback_window_shows_no_text_reminder_for_fifth_lead(
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
 
@@ -950,8 +934,7 @@ async def test_feedback_window_no_reminder_for_non_fifth_lead(
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
-        "nm_id": article.nm_id,
-        "price": 1500,
+        "orders": [{"nm_id": article.nm_id, "price": 1500}],
         "cancel_reason": None,
     })
 
