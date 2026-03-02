@@ -888,3 +888,75 @@ async def test_cashback_article_q4_not_enough_balance_sends_message(
 
     sent_texts = [m.text for m in fake_bot.sent_messages]
     assert "Мы свяжемся с вами позже ☺" in sent_texts
+
+
+async def test_feedback_window_shows_no_text_reminder_for_fifth_lead(
+    cabinet_factory,
+    cashback_table_factory,
+    cashback_article_factory,
+    buyer_factory,
+    di_container,
+    bot_client: FakeBotClient,
+    fake_bot: FakeBot,
+    message_manager: MockMessageManager,
+):
+    fake_bot.get_business_connection = AsyncMock(user=Mock(id=bot_client.user.id))
+    cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
+    await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
+    article = await cashback_article_factory(cabinet_id=cabinet.id)
+
+    # Создаём 4 существующих лида в кабинете — следующий (текущего пользователя) станет 5-м
+    for _ in range(4):
+        await buyer_factory(cabinet_id=cabinet.id)
+
+    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway.chat_with_client = AsyncMock(return_value={
+        "response": "Отлично! Начнём оформление кешбека.",
+        "article_ids": [article.id],
+    })
+    openai_gateway.classify_order_screenshot = AsyncMock(return_value={
+        "is_order": True,
+        "nm_id": article.nm_id,
+        "price": 1500,
+        "cancel_reason": None,
+    })
+
+    await bot_client.send_business("хочу кешбек")  # создаёт 5-го лида
+    await bot_client.send_business_photo()  # скрин заказа → переход в check_received
+
+    feedback_window_message = message_manager.sent_messages[-1]
+    assert "Важно" in feedback_window_message.text
+    assert "без текста" in feedback_window_message.text
+
+
+async def test_feedback_window_no_reminder_for_non_fifth_lead(
+    cabinet_factory,
+    cashback_table_factory,
+    cashback_article_factory,
+    di_container,
+    bot_client: FakeBotClient,
+    fake_bot: FakeBot,
+    message_manager: MockMessageManager,
+):
+    fake_bot.get_business_connection = AsyncMock(user=Mock(id=bot_client.user.id))
+    cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
+    await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
+    article = await cashback_article_factory(cabinet_id=cabinet.id)
+
+    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway.chat_with_client = AsyncMock(return_value={
+        "response": "Отлично! Начнём оформление кешбека.",
+        "article_ids": [article.id],
+    })
+    openai_gateway.classify_order_screenshot = AsyncMock(return_value={
+        "is_order": True,
+        "nm_id": article.nm_id,
+        "price": 1500,
+        "cancel_reason": None,
+    })
+
+    await bot_client.send_business("хочу кешбек")  # создаёт 1-го лида (не кратно 5)
+    await bot_client.send_business_photo()  # скрин заказа → переход в check_received
+
+    feedback_window_message = message_manager.sent_messages[-1]
+    assert "Важно" not in feedback_window_message.text
