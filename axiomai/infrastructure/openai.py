@@ -24,16 +24,20 @@ class ChatHistoryEntry(TypedDict):
     user: str
     assistant: str
 
+class OrderItem(TypedDict):
+    nm_id: int
+    price: int | None
+
+
 class ClassifyOrderResult(TypedDict):
     is_order: bool
-    nm_id: int | None
-    price: int | None
+    orders: list[OrderItem]
     cancel_reason: str | None
 
 
 class ClassifyFeedbackResult(TypedDict):
     is_feedback: bool
-    nm_id: int | None
+    nm_ids: list[int]
     cancel_reason: str | None
 
 
@@ -77,9 +81,9 @@ class OpenAIGateway:
         Ты помощник для анализа скриншотов заказов Wildberries.
         
         Проанализируй скриншот заказа на Wildberries и определи:
-        1. Есть ли на скриншоте ЗАКАЗ одного из целевых товаров (из списка ниже)
-        2. Какой именно товар заказан (по nm_id)
-        3. Какая цена указана для этого товара в рублях (₽)
+        1. Есть ли на скриншоте ЗАКАЗ одного или нескольких целевых товаров (из списка ниже)
+        2. Какие именно товары заказаны (по nm_id) — на скриншоте может быть несколько заказов сразу
+        3. Какая цена указана для каждого товара в рублях (₽)
         
         ВАЖНЫЕ признаки заказа на Wildberries:
         - Наличие слова "Заказы" в верхней части экрана
@@ -88,16 +92,16 @@ class OpenAIGateway:
         
         Сравни изображение товара на скриншоте с эталонными изображениями товаров (если предоставлены).
         
-        Верни ответ в формате JSON: {"is_order": bool, "nm_id": int|null, "price": int|null, "cancel_reason": str|null}
+        Верни ответ в формате JSON: {"is_order": bool, "orders": [{"nm_id": int, "price": int|null}], "cancel_reason": str|null}
         Где:
-        - is_order = true, если заказ одного из наших товаров присутствует на скриншоте
-        - nm_id = артикул товара который найден на скриншоте, или null если товар не найден
-        - price = цена товара в рублях, или null если цена не видна
+        - is_order = true, если заказ одного или нескольких наших товаров присутствует на скриншоте
+        - orders = список найденных заказов наших товаров (может быть несколько, если на скриншоте видно несколько заказов)
+        - каждый элемент: nm_id = артикул товара, price = цена в рублях или null если не видна
         - cancel_reason = причина отказа, если is_order = false
         """
         
         prompt = f"""
-        ЦЕЛЕВЫЕ ТОВАРЫ (ищем заказ ОДНОГО из них):
+        ЦЕЛЕВЫЕ ТОВАРЫ (ищем заказы ОДНОГО ИЛИ НЕСКОЛЬКИХ из них):
         {articles_text}
 
         ИНСТРУКЦИЯ (дополнительные критерии для проверки):
@@ -131,17 +135,19 @@ class OpenAIGateway:
         result = _extract_response_text(response)
 
         if not result:
-            return {"is_order": False, "nm_id": None, "price": None, "cancel_reason": None}
+            return {"is_order": False, "orders": [], "cancel_reason": None}
 
         with suppress(json.JSONDecodeError, TypeError):
             parsed = json.loads(result)
             logger.debug("classified order screenshot %s", parsed)
-            if parsed.get("nm_id") and parsed["nm_id"] not in valid_nm_ids:
-                parsed["nm_id"] = None
+            if parsed.get("orders"):
+                parsed["orders"] = [o for o in parsed["orders"] if o.get("nm_id") in valid_nm_ids]
+            if not parsed.get("orders"):
+                parsed["orders"] = []
                 parsed["is_order"] = False
             return parsed
 
-        return {"is_order": False, "nm_id": None, "price": None, "cancel_reason": None}
+        return {"is_order": False, "orders": [], "cancel_reason": None}
 
     async def classify_feedback_screenshot(
         self,
@@ -160,8 +166,8 @@ class OpenAIGateway:
         Ты помощник для анализа скриншотов отзывов Wildberries.
         
         Проанализируй скриншот и определи:
-        1. Есть ли на скриншоте ОТЗЫВ на один из целевых товаров (из списка ниже)
-        2. На какой именно товар оставлен отзыв (по nm_id)
+        1. Есть ли на скриншоте ОТЗЫВ на один или несколько целевых товаров (из списка ниже)
+        2. На какие именно товары оставлены отзывы (по nm_id) — на скриншоте может быть несколько отзывов
         
         КРИТЕРИИ:
             - Подпись у товара должна быть названием целевого товара или его брендом.
@@ -170,17 +176,17 @@ class OpenAIGateway:
             - ТЕКСТ отзыва(ЕСЛИ ОН ЕСТь) НЕ должен содержать описание товара. Только общие фразы МОГУТ БЫТЬ, например: "товар хороший", "всё хорошо", "отличный товар", и тд
             - На скриншоте НЕ должно быть замазок/блюра и других изменений, только обычный скриншот с телефона без исправлений
         
-        Верни ответ в формате JSON: {"is_feedback": bool, "nm_id": int|null, "cancel_reason": str|null}
+        Верни ответ в формате JSON: {"is_feedback": bool, "nm_ids": [int], "cancel_reason": str|null}
         Где:
-        - is_feedback = true, если на скриншоте есть отзыв с 5 звёздами на один из наших товаров
-        - nm_id = артикул товара на который оставлен отзыв, или null если не найден
+        - is_feedback = true, если на скриншоте есть отзыв с 5 звёздами на один или несколько наших товаров
+        - nm_ids = список артикулов товаров, на которые оставлены отзывы (может быть несколько)
         - cancel_reason = причина отказа, если is_feedback = false
         """
         
         prompt = f"""
         Подумай и скажи есть ли на скриншоте ОТЗЫВ на один из наших товаров на Wildberries, сделанный согласно нашим КРИТЕРИЯМ.
 
-        ЦЕЛЕВЫЕ ТОВАРЫ (ищем отзыв на ОДИН из них):
+        ЦЕЛЕВЫЕ ТОВАРЫ (ищем отзывы на ОДИН ИЛИ НЕСКОЛЬКО из них):
         {articles_text}
         
         ИНСТРУКЦИЯ (дополнительные критерии для проверки):
@@ -222,18 +228,19 @@ class OpenAIGateway:
                         break
 
         if not result:
-            return {"is_feedback": False, "nm_id": None, "cancel_reason": None}
+            return {"is_feedback": False, "nm_ids": [], "cancel_reason": None}
 
         with suppress(json.JSONDecodeError, TypeError):
             parsed = json.loads(result)
             logger.info("classified feedback screenshot %s", parsed)
-            # Валидируем nm_id
-            if parsed.get("nm_id") and parsed["nm_id"] not in valid_nm_ids:
-                parsed["nm_id"] = None
+            if parsed.get("nm_ids"):
+                parsed["nm_ids"] = [nid for nid in parsed["nm_ids"] if nid in valid_nm_ids]
+            if not parsed.get("nm_ids"):
+                parsed["nm_ids"] = []
                 parsed["is_feedback"] = False
             return parsed
 
-        return {"is_feedback": False, "nm_id": None, "cancel_reason": None}
+        return {"is_feedback": False, "nm_ids": [], "cancel_reason": None}
 
     async def classify_cut_labels_photo(
         self,
