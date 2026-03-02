@@ -118,7 +118,7 @@ async def _process_feedback_screenshot_background(  # noqa: PLR0915
     pending_nm_ids = get_pending_nm_ids_for_step(buyers, step="check_received")
     pending_articles = [a for a in articles if a.nm_id in pending_nm_ids]
 
-    result: str | None | ClassifyFeedbackResult = None
+    result: ClassifyFeedbackResult | None = None
     try:
         result = await openai_gateway.classify_feedback_screenshot(
             photo_url=photo_url,
@@ -129,7 +129,11 @@ async def _process_feedback_screenshot_background(  # noqa: PLR0915
         await bot.send_message(
             chat_id, "Попробуйте отправить фото сюда еще раз", business_connection_id=business_connection_id
         )
-        result = "classify feedback screenshot error"
+        result = ClassifyFeedbackResult(
+            is_feedback=False,
+            nm_ids=[],
+            cancel_reason="Ошибка при обработке скриншота отзыва"
+        )
         return
     finally:
         await add_to_chat_history(di_container, chat_id, cabinet.id, "[Скрин отзыва]", json.dumps(result))
@@ -141,7 +145,7 @@ async def _process_feedback_screenshot_background(  # noqa: PLR0915
     )
     await asyncio.sleep(config.delay_between_bot_messages)
 
-    if not result["is_feedback"] or not result["nm_id"]:
+    if not result["is_feedback"] or not result["nm_ids"]:
         cancel_reason = result["cancel_reason"]
         if cancel_reason is None:
             cancel_reason = "Скриншот отзыва не прошёл проверку"
@@ -159,28 +163,35 @@ async def _process_feedback_screenshot_background(  # noqa: PLR0915
         )
         return
 
-    buyer_id = next((b.id for b in buyers if b.nm_id == result["nm_id"]), None)
-    if not buyer_id:
-        logger.error("buyer not found for nm_id %s, chat_id %s", result["nm_id"], chat_id)
+    accepted_articles = []
+    for nm_id in result["nm_ids"]:
+        buyer_id = next((b.id for b in buyers if b.nm_id == nm_id), None)
+        if not buyer_id:
+            logger.error("buyer not found for nm_id %s, chat_id %s", nm_id, chat_id)
+            continue
+
+        async with di_container() as r_container:
+            buyer_gateway = await r_container.get(BuyerGateway)
+            transaction_manager = await r_container.get(TransactionManager)
+            buyer = await buyer_gateway.get_buyer_by_id(buyer_id)
+            buyer.is_left_feedback = True
+            await transaction_manager.commit()
+
+        article = next((a for a in articles if a.nm_id == nm_id), None)
+        if article:
+            accepted_articles.append(article)
+
+    if not accepted_articles:
         return
 
     async with di_container() as r_container:
         buyer_gateway = await r_container.get(BuyerGateway)
-        transaction_manager = await r_container.get(TransactionManager)
-        buyer = await buyer_gateway.get_buyer_by_id(buyer_id)
-        buyer.is_left_feedback = True
-        await transaction_manager.commit()
-
         buyers = await buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(chat_id, cabinet.id)
 
-    article = next((a for a in articles if a.nm_id == result["nm_id"]), None)
-
-    if not article:
-        raise ValueError(f"Article in result {result["nm_id"]} not found in {pending_nm_ids}")
-
+    titles = ", ".join(f"<b>{a.title}</b>" for a in accepted_articles)
     await bot.send_message(
         chat_id,
-        f"✅ Скриншот отзыва для <b>{article.title}</b> принят!",
+        f"✅ Скриншот отзыва для {titles} принят!",
         business_connection_id=business_connection_id,
     )
 
