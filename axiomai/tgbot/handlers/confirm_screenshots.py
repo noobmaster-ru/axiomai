@@ -131,17 +131,16 @@ async def on_seller_cancel_buyer(
         return
 
     buyers = await buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(lead_id, cabinet.id)
-    cancellable = [b for b in buyers if not b.is_ordered]
 
     if args:
         nm_id = _parse_int(args[0])
         if nm_id is None:
             return
-        target = next((b for b in cancellable if b.nm_id == nm_id), None)
-    elif len(cancellable) == 1:
-        target = cancellable[0]
+        target = next((b for b in buyers if b.nm_id == nm_id), None)
+    elif len(buyers) == 1:
+        target = buyers[0]
     else:
-        logger.info("cancel: %d cancellable buyers for lead %s, nm_id required", len(cancellable), lead_id)
+        logger.info("cancel: %d cancellable buyers for lead %s, nm_id required", len(buyers), lead_id)
         return
 
     if not target:
