@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import select, or_, and_
+from sqlalchemy import and_, or_, select
 
 from axiomai.infrastructure.database.gateways.base import Gateway
 from axiomai.infrastructure.database.models import Cabinet, User
