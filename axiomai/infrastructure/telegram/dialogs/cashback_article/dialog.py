@@ -67,11 +67,15 @@ async def article_getter(
         if a.nm_id in buyer_map
     ]
 
+    all_cabinet_buyers = await buyer_gateway.get_buyers_by_cabinet_id(cabinet.id)
+    show_no_text_reminder = len(all_cabinet_buyers) % 5 == 0
+
     return {
         "peding_order": pending_order,
         "pending_feedback": pending_feedback,
         "pending_labels": pending_labels,
         "cancellable_buyers": cancellable_buyers,
+        "show_no_text_reminder": show_no_text_reminder,
     }
 
 
@@ -135,11 +139,13 @@ ORDER_INPUT_TEXT = """
 """
 
 FEEDBACK_INPUT_TEXT = """
-📬 Когда получите товары, отправьте, пожалуйста, <b>скриншот отзыва</b> на 5 звёзд БЕЗ ТЕКСТА следующих артикулов:
+📬 Когда получите товары, отправьте, пожалуйста, <b>скриншот отзыва</b> на 5 звёзд следующих артикулов:
 {% for pending in pending_feedback %}
 • <code>{{ pending.nm_id }}</code> — {{ pending.title }}
 {% endfor %}
-"""
+{% if show_no_text_reminder %}
+⚠️ <b>Важно:</b> оставьте отзыв <u>без текста</u> — только звёзды, без описания!
+{% endif %}"""
 
 CUT_LABELS_INPUT_TEXT = """
 ✂ Разрежте этикетки (qr-код или штрихкод) и отправьте, пожалуйста, фотографию разрезанных этикеток для следующих артикулов:
