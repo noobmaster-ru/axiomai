@@ -8,6 +8,7 @@ from aiogram_dialog import DialogManager, ShowMode, StartMode
 from aiogram_dialog.widgets.input import MessageInput
 from dishka import AsyncContainer, FromDishka
 from dishka.integrations.aiogram_dialog import inject
+from redis.asyncio import Redis
 
 from axiomai.application.interactors.create_buyer import CreateBuyer
 from axiomai.config import Config
@@ -20,6 +21,21 @@ from axiomai.infrastructure.database.models import Buyer
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, merge_messages_text
 from axiomai.infrastructure.openai import OpenAIGateway
 from axiomai.infrastructure.telegram.dialogs.states import CashbackArticleStates
+
+_PHOTO_ERROR_TTL = 86400  # 24 hours
+
+
+async def get_and_increment_photo_error_count(
+    redis: Redis,
+    business_connection_id: str,
+    chat_id: int,
+    step: str,
+) -> int:
+    key = f"photo_errors:{business_connection_id}:{chat_id}:{step}"
+    count = await redis.incr(key)
+    if count == 1:
+        await redis.expire(key, _PHOTO_ERROR_TTL)
+    return int(count)
 
 
 def get_pending_nm_ids_for_step(buyers: list[Buyer], step: str) -> list[int]:
