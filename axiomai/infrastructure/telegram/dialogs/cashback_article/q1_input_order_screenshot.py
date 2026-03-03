@@ -10,8 +10,10 @@ from aiogram_dialog import DialogManager, ShowMode
 from aiogram_dialog.widgets.input import MessageInput
 from dishka import AsyncContainer, FromDishka
 from dishka.integrations.aiogram_dialog import inject
+from redis.asyncio import Redis
 
 from axiomai.config import Config
+from axiomai.constants import MAX_PHOTO_INPUT_ERRORS
 from axiomai.infrastructure.chat_history import add_to_chat_history
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
@@ -20,6 +22,7 @@ from axiomai.infrastructure.database.transaction_manager import TransactionManag
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, TaskStrategy
 from axiomai.infrastructure.openai import ClassifyOrderResult, OpenAIGateway
 from axiomai.infrastructure.telegram.dialogs.cashback_article.common import (
+    get_and_increment_photo_error_count,
     get_pending_nm_ids_for_step,
 )
 from axiomai.infrastructure.telegram.dialogs.states import CashbackArticleStates
@@ -80,7 +83,7 @@ async def on_input_order_screenshot(
     )
 
 
-async def _process_order_screenshot_background(  # noqa: PLR0915, C901
+async def _process_order_screenshot_background(  # noqa: PLR0912, PLR0915, C901
     messages: list[MessageData],
     bot: Bot,
     bg_manager: DialogManager,
@@ -110,6 +113,7 @@ async def _process_order_screenshot_background(  # noqa: PLR0915, C901
         buyer_gateway = await r_container.get(BuyerGateway)
         cabinet_gateway = await r_container.get(CabinetGateway)
         cashback_table_gateway = await r_container.get(CashbackTableGateway)
+        redis = await r_container.get(Redis)
 
         cabinet = await cabinet_gateway.get_cabinet_by_business_connection_id(business_connection_id)
         buyers = await buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(chat_id, cabinet.id)
@@ -150,6 +154,11 @@ async def _process_order_screenshot_background(  # noqa: PLR0915, C901
         if cancel_reason is None:
             cancel_reason = "Ошибка при распознавании скриншота заказа"
 
+        error_count = await get_and_increment_photo_error_count(redis, business_connection_id, chat_id, "check_order")
+        if error_count <= MAX_PHOTO_INPUT_ERRORS:
+            await bot.send_message(chat_id, cancel_reason, business_connection_id=business_connection_id)
+            return
+
         chat_link = f"https://t.me/{username}" if username else None
         user_ref = f'<a href="{chat_link}">@{username}</a>' if username else fullname
         await bot.send_photo(
@@ -169,8 +178,18 @@ async def _process_order_screenshot_background(  # noqa: PLR0915, C901
         price = order["price"]
 
         if not price:
+            error_count = await get_and_increment_photo_error_count(redis, business_connection_id, chat_id, "check_order")
+            if error_count <= MAX_PHOTO_INPUT_ERRORS:
+                await bot.send_message(
+                    chat_id,
+                    "На скриншоте заказа не видно цену товара. Пожалуйста, отправьте фото с ценой.",
+                    business_connection_id=business_connection_id,
+                )
+                continue
+
             chat_link = f"https://t.me/{username}" if username else None
             user_ref = f'<a href="{chat_link}">@{username}</a>' if username else fullname
+            await bot.send_message(chat_id, "Подождите, скоро с вами свяжется менеджер...", business_connection_id=business_connection_id)
             await bot.send_photo(
                 chat_id=cabinet.business_account_id,
                 photo=URLInputFile(photo_url),

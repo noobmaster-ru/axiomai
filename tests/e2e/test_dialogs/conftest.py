@@ -10,6 +10,7 @@ from aiogram.methods import (
     AnswerCallbackQuery,
     DeleteBusinessMessages,
     SendMessage,
+    SendPhoto,
     ReadBusinessMessage,
     SendChatAction,
     GetFile,
@@ -38,6 +39,7 @@ from axiomai.tgbot import handlers
 class FakeBot(Bot):
     def __init__(self) -> None:
         self.sent_messages: list[SendMessage] = []
+        self.sent_photos: list[SendPhoto] = []
         self.deleted_business_messages: list[DeleteBusinessMessages] = []
         self.__token = "FAKE_BOT_TOKEN"
 
@@ -57,6 +59,9 @@ class FakeBot(Bot):
             return True
         if isinstance(method, SendMessage):
             self.sent_messages.append(method)
+            return True
+        if isinstance(method, SendPhoto):
+            self.sent_photos.append(method)
             return True
         if isinstance(method, GetFile):
             return File(file_id="fake_file_id", file_unique_id="unique_fake_file_id", file_path="path/to/fake/file")
