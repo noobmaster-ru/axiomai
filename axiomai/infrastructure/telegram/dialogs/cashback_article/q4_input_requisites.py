@@ -101,7 +101,7 @@ async def on_confirm_requisites(
     if order_number is None:
         if payout_error_message:
             await callback.message.answer(payout_error_message)
-        await callback.message.answer(f"Подписывайтесь на наш канал {WB_CHANNEL_NAME} , там будет много интересных товаров")
+        await callback.message.answer(f"Подписывайтесь на наш канал {WB_CHANNEL_NAME} , там будет много интересных товаров с БОЛЬШИМ кэшбеком ☺")
         await dialog_manager.done()
         return
 

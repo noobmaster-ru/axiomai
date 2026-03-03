@@ -216,7 +216,7 @@ cashback_article_dialog = Dialog(
             when=lambda d, _, __: (not d["phone_number"]) and (d["bank"] or d["amount"]),
         ),
         Const(
-            "💬 Пожалуйста, отправьте сумму перевода, например: 200 рублей",
+            "💬 Пожалуйста, отправьте сумму перевода, например: 160 рублей",
             # когда нет суммы и есть банк или номер телефона
             when=lambda d, _, __: (not d["amount"]) and (d["bank"] or d["phone_number"]),
         ),
