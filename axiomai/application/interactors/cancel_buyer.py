@@ -1,6 +1,6 @@
 import logging
 
-from axiomai.application.exceptions.buyer import BuyerAlreadyOrderedError, BuyerNotFoundError
+from axiomai.application.exceptions.buyer import BuyerNotFoundError
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
 
@@ -16,11 +16,6 @@ class CancelBuyer:
         buyer = await self._buyer_gateway.get_buyer_by_id(buyer_id)
         if not buyer:
             raise BuyerNotFoundError(f"Buyer with id = {buyer_id} not found")
-
-        if buyer.is_ordered:
-            raise BuyerAlreadyOrderedError(
-                f"Cannot cancel buyer {buyer_id}: order screenshot already accepted"
-            )
 
         buyer.is_canceled = True
         await self._tm.commit()

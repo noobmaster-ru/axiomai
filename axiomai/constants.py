@@ -9,6 +9,8 @@ SUPERBANKING_ORDER_PREFIX = "payment-"
 URL_CREATE_PAYMENT = "https://api.superbanking.ru/cabinet/payout/create?v=1.0.0"
 URL_SIGN_PAYMENT = "https://api.superbanking.ru/cabinet/payout/sign?v=1.0.1"
 TIME_SLEEP_BEFORE_CONFIRM_PAYMENT = 10
+CONFIRM_PAYMENT_MAX_RETRIES = 5
+CONFIRM_PAYMENT_BACKOFF_BASE = 5  # seconds, doubles each attempt: 5, 10, 20, 40, 80
 URL_CONFIRM_PAYMENT = "https://api.superbanking.ru/cabinet/confirmOperation/createOne?v=1.0.0"
 SUPERBANKING_COMMISSION = 25
 AXIOMAI_COMMISSION = 5

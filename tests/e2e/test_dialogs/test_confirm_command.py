@@ -235,45 +235,6 @@ async def test_cancel_without_nm_id_requires_it_when_multiple_buyers(
     assert all(not b.is_canceled for b in buyers)
 
 
-async def test_cancel_already_ordered_buyer_does_nothing(
-    cabinet_factory,
-    cashback_table_factory,
-    cashback_article_factory,
-    di_container,
-    session,
-    bot_client: FakeBotClient,
-    fake_bot: FakeBot,
-):
-    """/cancel {nm_id} для заявки с is_ordered=True ничего не меняет."""
-    fake_bot.get_business_connection = AsyncMock(return_value=Mock(user=Mock(id=SELLER_USER_ID)))
-    cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
-    await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
-    article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
-
-    await _start_dialog(bot_client, article, openai_gateway)
-
-    seller_client = FakeBotClient(
-        bot_client.dp,
-        user_id=SELLER_USER_ID,
-        chat_id=LEAD_USER_ID,
-        business_connection_id=bot_client.business_connection_id,
-        bot=fake_bot,
-    )
-    # Сначала подтверждаем заказ
-    await seller_client.send_business(f"/confirm {article.nm_id}")
-
-    buyer = await session.scalar(select(Buyer).where(Buyer.telegram_id == LEAD_USER_ID))
-    assert buyer.is_ordered is True
-
-    # Теперь пытаемся отменить — уже нельзя
-    await seller_client.send_business(f"/cancel {article.nm_id}")
-
-    await session.refresh(buyer)
-    assert buyer.is_canceled is False
-    assert buyer.is_ordered is True
-
-
 async def test_cancel_one_of_two_buyers(
     cabinet_factory,
     cashback_table_factory,

@@ -942,4 +942,4 @@ async def test_feedback_window_no_reminder_for_non_fifth_lead(
     await bot_client.send_business_photo()  # скрин заказа → переход в check_received
 
     feedback_window_message = message_manager.sent_messages[-1]
-    assert "Важно" not in feedback_window_message.text
+    assert "без текста" not in feedback_window_message.text

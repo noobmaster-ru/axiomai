@@ -9,7 +9,6 @@ from aiogram_dialog.api.protocols import BgManagerFactory
 from dishka import FromDishka
 from dishka.integrations.aiogram import inject
 
-from axiomai.application.exceptions.buyer import BuyerAlreadyOrderedError
 from axiomai.application.interactors.cancel_buyer import CancelBuyer
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
@@ -147,11 +146,7 @@ async def on_seller_cancel_buyer(
         logger.info("cancel: nm_id not found or already ordered for lead %s", lead_id)
         return
 
-    try:
-        await cancel_buyer.execute(target.id)
-    except BuyerAlreadyOrderedError:
-        logger.info("cancel: buyer %s already ordered, cannot cancel", target.id)
-        return
+    await cancel_buyer.execute(target.id)
 
     remaining = await buyer_gateway.get_incompleted_buyers_by_telegram_id_and_cabinet_id(lead_id, cabinet.id)
 
