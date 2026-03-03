@@ -49,6 +49,15 @@ class FakeRedis:
     async def delete(self, key: str) -> None:
         self._data.pop(key, None)
 
+    async def incr(self, key: str) -> int:
+        current = int(self._data.get(key, b"0"))
+        new_value = current + 1
+        self._data[key] = str(new_value).encode()
+        return new_value
+
+    async def expire(self, key: str, ttl: int) -> None:
+        pass  # TTL not enforced in tests
+
 
 @pytest.fixture(scope="session")
 def postgres_uri():
@@ -141,6 +150,7 @@ def cabinet_factory(session, user_factory):
         leads_balance: int = 1000,
         business_connection_id: str | None = None,
         is_superbanking_connect: bool = False,
+        business_account_id: int | None = None,
     ) -> Cabinet:
         if not user_id:
             user = await user_factory()
@@ -155,6 +165,7 @@ def cabinet_factory(session, user_factory):
             link_code=secrets.token_urlsafe(16),
             business_connection_id=business_connection_id,
             is_superbanking_connect=is_superbanking_connect,
+            business_account_id=business_account_id,
         )
         session.add(cabinet)
         await session.flush()
