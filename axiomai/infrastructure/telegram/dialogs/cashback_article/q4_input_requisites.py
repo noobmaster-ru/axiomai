@@ -1,10 +1,8 @@
-import asyncio
 import logging
 from typing import Any
-from urllib import error
 
 from aiogram import Bot
-from aiogram.types import CallbackQuery, Message, URLInputFile
+from aiogram.types import CallbackQuery, Message
 from aiogram_dialog import DialogManager, ShowMode
 from dishka import AsyncContainer, FromDishka
 from dishka.integrations.aiogram_dialog import inject
@@ -16,7 +14,6 @@ from axiomai.constants import (
     AMOUNT_PATTERN,
     BANK_PATTERN,
     PHONE_PATTERN,
-    TIME_SLEEP_BEFORE_CONFIRM_PAYMENT,
     WB_CHANNEL_NAME,
 )
 from axiomai.infrastructure.chat_history import add_to_chat_history
@@ -76,7 +73,6 @@ async def on_confirm_requisites(
     callback: CallbackQuery,
     widget: Any,
     dialog_manager: DialogManager,
-    superbanking: FromDishka[Superbanking],
     create_superbanking_payment: FromDishka[CreateSuperbankingPayment],
     cabinet_gateway: FromDishka[CabinetGateway],
 ) -> None:
@@ -109,20 +105,6 @@ async def on_confirm_requisites(
         await dialog_manager.done()
         return
 
-    logger.info(
-        "on_confirm_requisites scheduling receipt check: telegram_id=%s, order_number=%s",
-        callback.from_user.id,
-        order_number,
-    )
-    task = asyncio.create_task(
-        _send_receipt_after_confirm(
-            superbanking=superbanking,
-            message=callback.message,
-            order_number=order_number,
-        )
-    )
-    task.add_done_callback(lambda _: None)
-    # тут можно вставить отправку ссылки на канал, но я вставил её в _send_receipt_after_confirm, чтобы отправилось после чека
     await dialog_manager.done()
 
 
@@ -170,36 +152,6 @@ async def _create_superbanking_payout(
         order_number,
     )
     return order_number, ""
-
-
-async def _send_receipt_after_confirm(
-    *,
-    superbanking: Superbanking,
-    message: Message,
-    order_number: str,
-) -> None:
-    await asyncio.sleep(TIME_SLEEP_BEFORE_CONFIRM_PAYMENT)
-
-    try:
-        check_url = await superbanking.confirm_operation(order_number=order_number)
-    except (ValueError, error.HTTPError, error.URLError):
-        logger.exception(
-            "Failed to confirm_operation() Superbanking payout for telegram_id=%s", message.from_user.id
-        )
-        await message.answer("Чек будет доступен чуть позже. Мы пришлём его дополнительно.")
-        return
-
-    pdf_file = URLInputFile(
-        check_url,
-        filename="Чек.pdf",
-    )
-    await message.answer_document(
-        document=pdf_file,
-        caption="Чек по выплате",
-    )
-
-    # отправляем ссылку на канал после чека в самом конце сценария
-    await message.answer(f"Подписывайтесь на наш канал {WB_CHANNEL_NAME} , там будет много интересных товаров")
 
 
 async def on_decline_requisites(callback: CallbackQuery, widget: Any, dialog_manager: DialogManager) -> None:
