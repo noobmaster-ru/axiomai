@@ -26,6 +26,7 @@ from axiomai.infrastructure.message_debouncer import MessageData, MessageDebounc
 from axiomai.infrastructure.openai import OpenAIGateway
 from axiomai.infrastructure.telegram.dialogs.cashback_article.common import determine_resume_state
 from axiomai.infrastructure.telegram.dialogs.states import CashbackArticleStates
+from axiomai.infrastructure.telegram.keyboards.inline import build_manager_handled_keyboard
 from axiomai.tgbot.filters.ignore_self_message import SelfBusinessMessageFilter
 
 logger = logging.getLogger(__name__)
@@ -187,6 +188,7 @@ async def _process_accumulated_messages(
                 f"💬 Сообщение: <code>{combined_text}</code>\n\n"
                 + (f'<a href="{chat_link}">Перейти к переписке</a>' if chat_link else "")
             ),
+            reply_markup=build_manager_handled_keyboard(),
         )
         return
 

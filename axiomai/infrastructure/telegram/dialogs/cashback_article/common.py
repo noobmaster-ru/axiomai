@@ -21,6 +21,7 @@ from axiomai.infrastructure.database.models import Buyer
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, merge_messages_text
 from axiomai.infrastructure.openai import OpenAIGateway
 from axiomai.infrastructure.telegram.dialogs.states import CashbackArticleStates
+from axiomai.infrastructure.telegram.keyboards.inline import build_manager_handled_keyboard
 
 _PHOTO_ERROR_TTL = 86400  # 24 hours
 
@@ -150,6 +151,7 @@ async def _process_dialog_messages(
                 f"💬 Сообщение: <code>{combined_text}</code>\n\n"
                 + (f'<a href="{chat_link}">Перейти к переписке</a>' if chat_link else "")
             ),
+            reply_markup=build_manager_handled_keyboard(),
         )
         return
 
