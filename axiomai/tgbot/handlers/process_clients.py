@@ -164,6 +164,7 @@ async def _process_accumulated_messages(
 
     response_text = result["response"]
     classified_article_ids = result["article_ids"]
+    wants_manager = result["wants_manager"]
 
     await bot.send_chat_action(
         chat_id=chat_id,
@@ -171,6 +172,23 @@ async def _process_accumulated_messages(
         business_connection_id=business_connection_id,
     )
     await asyncio.sleep(config.delay_between_bot_messages)
+
+    if wants_manager:
+        async with di_container() as r_container:
+            cabinet_gateway = await r_container.get(CabinetGateway)
+            cabinet = await cabinet_gateway.get_cabinet_by_business_connection_id(business_connection_id)
+
+        chat_link = f"https://t.me/{username}" if username else None
+        user_ref = f'<a href="{chat_link}">@{username}</a>' if username else fullname
+        await bot.send_message(
+            chat_id=cabinet.business_account_id,
+            text=(
+                f"👤 Пользователь {user_ref} просит связаться с менеджером\n\n"
+                f"💬 Сообщение: <code>{combined_text}</code>\n\n"
+                + (f'<a href="{chat_link}">Перейти к переписке</a>' if chat_link else "")
+            ),
+        )
+        return
 
     if classified_article_ids:
         await add_predialog_chat_history(redis, business_connection_id, chat_id, combined_text, response_text)

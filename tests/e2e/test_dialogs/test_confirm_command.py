@@ -15,7 +15,7 @@ async def _start_dialog(bot_client: FakeBotClient, article, openai_gateway) -> N
     """Запускает диалог с лидом и создаёт buyer."""
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     await bot_client.send_business("хочу кешбек")
 
@@ -39,7 +39,7 @@ async def test_confirm_multiple_buyers_with_nm_id(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.",
-        "article_ids": [article1.id, article2.id],
+        "article_ids": [article1.id, article2.id], "wants_manager": False,
     })
     await bot_client.send_business("хочу кешбек")
 
@@ -81,7 +81,7 @@ async def test_confirm_multiple_buyers_with_nm_id_and_amount(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.",
-        "article_ids": [article1.id, article2.id],
+        "article_ids": [article1.id, article2.id], "wants_manager": False,
     })
     await bot_client.send_business("хочу кешбек")
 
@@ -123,7 +123,7 @@ async def test_confirm_from_lead_is_ignored(
     openai_gateway = await di_container.get(OpenAIGateway)
     openai_gateway.answer_user_question = AsyncMock(return_value={
         "response": "не понял",
-        "wants_to_stop": False,
+        "wants_to_stop": False, "wants_manager": False,
         "switch_to_article_id": None,
     })
 
@@ -218,7 +218,7 @@ async def test_cancel_without_nm_id_requires_it_when_multiple_buyers(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.",
-        "article_ids": [article1.id, article2.id],
+        "article_ids": [article1.id, article2.id], "wants_manager": False,
     })
     await bot_client.send_business("хочу кешбек")
 
@@ -254,7 +254,7 @@ async def test_cancel_one_of_two_buyers(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.",
-        "article_ids": [article1.id, article2.id],
+        "article_ids": [article1.id, article2.id], "wants_manager": False,
     })
     await bot_client.send_business("хочу кешбек")
 
