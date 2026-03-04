@@ -1,8 +1,21 @@
+import asyncio
 import logging
+
+from aiogram import Bot
+from aiogram.types import URLInputFile
+from aiohttp.web_exceptions import HTTPError
+from dishka import AsyncContainer
 
 from axiomai.application.exceptions.payment import NotEnoughBalanceError
 from axiomai.application.exceptions.superbanking import CreatePaymentError, SignPaymentError, SkipSuperbankingError
-from axiomai.constants import AXIOMAI_COMMISSION, SUPERBANKING_COMMISSION
+from axiomai.constants import (
+    AXIOMAI_COMMISSION,
+    CONFIRM_PAYMENT_BACKOFF_BASE,
+    CONFIRM_PAYMENT_MAX_RETRIES,
+    SUPERBANKING_COMMISSION,
+    TIME_SLEEP_BEFORE_CONFIRM_PAYMENT,
+    WB_CHANNEL_NAME,
+)
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.superbanking_payout import SuperbankingPayoutGateway
@@ -20,12 +33,14 @@ class CreateSuperbankingPayment:
         superbanking_payout_gateway: SuperbankingPayoutGateway,
         transaction_manager: TransactionManager,
         superbanking: Superbanking,
+        di_container: AsyncContainer,
     ) -> None:
         self._buyer_gateway = buyer_gateway
         self._cabinet_gateway = cabinet_gateway
         self._superbanking_payout_gateway = superbanking_payout_gateway
         self._transaction_manager = transaction_manager
         self._superbanking = superbanking
+        self._di_container = di_container
 
     async def execute(
         self,
@@ -105,13 +120,97 @@ class CreateSuperbankingPayment:
             logger.exception("Failed to sign_payment() Superbanking payout for payout_id=%s", payout.id)
             raise
 
-        # успешно выплатили юзеру деньги через superbanking_api - списываем деньги с баланса селлера и ставим buyer.is_superbanking_paid = True
-        for buyer in buyers:
-            buyer.is_superbanking_paid = True
-            buyer.is_paid_manually = True
+        logger.info(
+            "scheduling receipt check: telegram_id=%s, order_number=%s",
+            telegram_id,
+            order_number,
+        )
 
-        cabinet.balance -= total_charge
-
-        await self._transaction_manager.commit()
+        task = asyncio.create_task(
+            send_receipt_after_confirm(
+                di_container=self._di_container,
+                telegram_id=telegram_id,
+                business_connection_id=cabinet.business_connection_id,
+                cabinet_id=cabinet_id,
+                order_number=order_number,
+            )
+        )
+        task.add_done_callback(lambda _: None)
 
         return payout.order_number
+
+
+async def send_receipt_after_confirm(
+    di_container: AsyncContainer,
+    telegram_id: int,
+    business_connection_id: str,
+    cabinet_id: int,
+    order_number: str,
+) -> None:
+    superbanking = await di_container.get(Superbanking)
+    bot = await di_container.get(Bot)
+
+    await asyncio.sleep(TIME_SLEEP_BEFORE_CONFIRM_PAYMENT)
+
+    check_url: str | None = None
+    last_exc: Exception | None = None
+    for attempt in range(CONFIRM_PAYMENT_MAX_RETRIES):
+        try:
+            check_url = await superbanking.confirm_operation(order_number=order_number)
+            break
+        except (ValueError, HTTPError) as exc:
+            last_exc = exc
+            delay = CONFIRM_PAYMENT_BACKOFF_BASE * (2 ** attempt)
+            logger.warning(
+                "confirm_operation() attempt %d/%d failed for telegram_id=%s, retrying in %ds",
+                attempt + 1,
+                CONFIRM_PAYMENT_MAX_RETRIES,
+                telegram_id,
+                delay,
+            )
+            await asyncio.sleep(delay)
+
+    if check_url is None:
+        logger.exception(
+            "Failed to confirm_operation() after %d attempts for telegram_id=%s",
+            CONFIRM_PAYMENT_MAX_RETRIES,
+            telegram_id,
+            exc_info=last_exc,
+        )
+        await bot.send_message(
+            telegram_id,
+            "Чек будет доступен чуть позже. Мы пришлём его дополнительно.",
+            business_connection_id=business_connection_id,
+        )
+        return
+
+    pdf_file = URLInputFile(check_url, filename="Чек.pdf")
+    await bot.send_document(
+        telegram_id,
+        document=pdf_file,
+        caption="Чек по выплате",
+        business_connection_id=business_connection_id,
+    )
+
+    async with di_container() as r_container:
+        buyer_gateway = await r_container.get(BuyerGateway)
+        cabinet_gateway = await r_container.get(CabinetGateway)
+        transaction_manager = await r_container.get(TransactionManager)
+
+        buyers = await buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(telegram_id, cabinet_id)
+        cabinet = await cabinet_gateway.get_cabinet_by_id(cabinet_id)
+
+        if buyers and cabinet:
+            total_amount = sum(b.amount for b in buyers if b.amount)
+            total_charge = total_amount + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
+            for buyer in buyers:
+                buyer.is_superbanking_paid = True
+                buyer.is_paid_manually = True
+            cabinet.balance -= total_charge
+            await transaction_manager.commit()
+
+    await bot.send_message(
+        telegram_id,
+        f"Подписывайтесь на наш канал {WB_CHANNEL_NAME}, там будет много интересных товаров с БОЛЬШИМ кэшбеком ☺",
+        business_connection_id=business_connection_id,
+    )

@@ -1,11 +1,16 @@
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
+from aiogram import Bot
+from aiohttp.web_exceptions import HTTPError
 from sqlalchemy import select
 
 from axiomai.application.exceptions.payment import NotEnoughBalanceError
 from axiomai.application.exceptions.superbanking import CreatePaymentError
-from axiomai.application.interactors.create_superbanking_payment import CreateSuperbankingPayment
+from axiomai.application.interactors.create_superbanking_payment import (
+    CreateSuperbankingPayment,
+    send_receipt_after_confirm,
+)
 from axiomai.constants import AXIOMAI_COMMISSION, SUPERBANKING_COMMISSION
 from axiomai.infrastructure.database.models import Buyer, Cabinet
 from axiomai.infrastructure.database.models.superbanking import SuperbankingPayout
@@ -63,8 +68,6 @@ async def test_create_superbanking_payment_creates_payout(
     payout = await session.scalar(select(SuperbankingPayout).where(SuperbankingPayout.order_number == order_number))
     assert payout is not None
     assert payout.order_number == order_number
-    assert buyer.is_superbanking_paid is True
-    assert cabinet.balance == 1000 - (buyer.amount + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION)
 
 
 async def test_create_superbanking_payment_missing_bank_raises(
@@ -125,8 +128,6 @@ async def test_create_superbanking_payment_distributes_amount_to_buyers_without_
 
     assert buyer1.amount == 200
     assert buyer2.amount == 200
-    assert buyer1.is_superbanking_paid is True
-    assert buyer2.is_superbanking_paid is True
 
 
 async def test_create_superbanking_payment_does_not_override_existing_amounts(
@@ -252,4 +253,196 @@ async def test_create_superbanking_payment_succeeds_with_exact_balance(
         amount=total_amount,
     )
 
-    assert cabinet.balance == 0
+    assert cabinet.balance == total_charge  # balance is deducted asynchronously after payment confirmation
+
+
+# --- Tests for send_receipt_after_confirm ---
+
+
+@patch("axiomai.application.interactors.create_superbanking_payment.asyncio.sleep", new_callable=AsyncMock)
+async def test_send_receipt_marks_buyers_paid_and_deducts_balance(
+    mock_sleep, di_container, session, cabinet_factory
+):
+    cabinet = await cabinet_factory(
+        balance=1000, is_superbanking_connect=True, business_connection_id="biz-1"
+    )
+    buyer = Buyer(
+        cabinet_id=cabinet.id,
+        username="test_user",
+        fullname="Test User",
+        telegram_id=123456,
+        nm_id=777,
+        amount=200,
+    )
+    session.add(buyer)
+    await session.flush()
+
+    superbanking = await di_container.get(Superbanking)
+    superbanking.confirm_operation = AsyncMock(return_value="https://example.com/receipt.pdf")
+
+    bot = await di_container.get(Bot)
+    bot.send_document = AsyncMock()
+    bot.send_message = AsyncMock()
+
+    await send_receipt_after_confirm(
+        di_container=di_container,
+        telegram_id=123456,
+        business_connection_id="biz-1",
+        cabinet_id=cabinet.id,
+        order_number="payment-test-1",
+    )
+
+    await session.refresh(buyer)
+    await session.refresh(cabinet)
+
+    assert buyer.is_superbanking_paid is True
+    assert buyer.is_paid_manually is True
+    assert cabinet.balance == 1000 - (200 + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION)
+
+    superbanking.confirm_operation.assert_awaited_once_with(order_number="payment-test-1")
+    bot.send_document.assert_awaited_once()
+    bot.send_message.assert_awaited_once()
+
+
+@patch("axiomai.application.interactors.create_superbanking_payment.asyncio.sleep", new_callable=AsyncMock)
+async def test_send_receipt_multiple_buyers_all_marked_paid(
+    mock_sleep, di_container, session, cabinet_factory
+):
+    cabinet = await cabinet_factory(
+        balance=2000, is_superbanking_connect=True, business_connection_id="biz-2"
+    )
+    buyer1 = Buyer(
+        cabinet_id=cabinet.id,
+        username="user1",
+        fullname="User 1",
+        telegram_id=555,
+        nm_id=111,
+        amount=300,
+    )
+    buyer2 = Buyer(
+        cabinet_id=cabinet.id,
+        username="user2",
+        fullname="User 2",
+        telegram_id=555,
+        nm_id=222,
+        amount=400,
+    )
+    session.add_all([buyer1, buyer2])
+    await session.flush()
+
+    superbanking = await di_container.get(Superbanking)
+    superbanking.confirm_operation = AsyncMock(return_value="https://example.com/receipt.pdf")
+
+    bot = await di_container.get(Bot)
+    bot.send_document = AsyncMock()
+    bot.send_message = AsyncMock()
+
+    await send_receipt_after_confirm(
+        di_container=di_container,
+        telegram_id=555,
+        business_connection_id="biz-2",
+        cabinet_id=cabinet.id,
+        order_number="payment-test-2",
+    )
+
+    await session.refresh(buyer1)
+    await session.refresh(buyer2)
+    await session.refresh(cabinet)
+
+    assert buyer1.is_superbanking_paid is True
+    assert buyer1.is_paid_manually is True
+    assert buyer2.is_superbanking_paid is True
+    assert buyer2.is_paid_manually is True
+
+    expected_charge = (300 + 400) + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
+    assert cabinet.balance == 2000 - expected_charge
+
+
+@patch("axiomai.application.interactors.create_superbanking_payment.asyncio.sleep", new_callable=AsyncMock)
+async def test_send_receipt_does_not_mark_buyers_when_confirm_fails(
+    mock_sleep, di_container, session, cabinet_factory
+):
+    cabinet = await cabinet_factory(
+        balance=1000, is_superbanking_connect=True, business_connection_id="biz-3"
+    )
+    buyer = Buyer(
+        cabinet_id=cabinet.id,
+        username="test_user",
+        fullname="Test User",
+        telegram_id=789,
+        nm_id=777,
+        amount=200,
+    )
+    session.add(buyer)
+    await session.flush()
+
+    superbanking = await di_container.get(Superbanking)
+    superbanking.confirm_operation = AsyncMock(side_effect=ValueError("confirm failed"))
+
+    bot = await di_container.get(Bot)
+    bot.send_document = AsyncMock()
+    bot.send_message = AsyncMock()
+
+    await send_receipt_after_confirm(
+        di_container=di_container,
+        telegram_id=789,
+        business_connection_id="biz-3",
+        cabinet_id=cabinet.id,
+        order_number="payment-fail",
+    )
+
+    await session.refresh(buyer)
+    await session.refresh(cabinet)
+
+    assert buyer.is_superbanking_paid is False
+    assert cabinet.balance == 1000
+
+    bot.send_document.assert_not_awaited()
+    bot.send_message.assert_awaited_once()
+    assert "позже" in bot.send_message.call_args[0][1]
+
+
+@patch("axiomai.application.interactors.create_superbanking_payment.asyncio.sleep", new_callable=AsyncMock)
+async def test_send_receipt_retries_on_transient_error_then_succeeds(
+    mock_sleep, di_container, session, cabinet_factory
+):
+    cabinet = await cabinet_factory(
+        balance=1000, is_superbanking_connect=True, business_connection_id="biz-4"
+    )
+    buyer = Buyer(
+        cabinet_id=cabinet.id,
+        username="test_user",
+        fullname="Test User",
+        telegram_id=321,
+        nm_id=777,
+        amount=200,
+    )
+    session.add(buyer)
+    await session.flush()
+
+    superbanking = await di_container.get(Superbanking)
+    superbanking.confirm_operation = AsyncMock(
+        side_effect=[ValueError("transient"), "https://example.com/receipt.pdf"]
+    )
+
+    bot = await di_container.get(Bot)
+    bot.send_document = AsyncMock()
+    bot.send_message = AsyncMock()
+
+    await send_receipt_after_confirm(
+        di_container=di_container,
+        telegram_id=321,
+        business_connection_id="biz-4",
+        cabinet_id=cabinet.id,
+        order_number="payment-retry",
+    )
+
+    await session.refresh(buyer)
+    await session.refresh(cabinet)
+
+    assert buyer.is_superbanking_paid is True
+    assert buyer.is_paid_manually is True
+    assert cabinet.balance == 1000 - (200 + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION)
+
+    assert superbanking.confirm_operation.await_count == 2
+    bot.send_document.assert_awaited_once()
