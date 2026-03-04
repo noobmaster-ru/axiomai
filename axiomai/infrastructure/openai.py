@@ -49,12 +49,14 @@ class ClassifyCutLabelsResult(TypedDict):
 class AnswerResult(TypedDict):
     response: str
     wants_to_stop: bool
+    wants_manager: bool
     switch_to_article_id: int | None
 
 
 class PredialogResult(TypedDict):
     response: str
     article_ids: list[int]
+    wants_manager: bool
 
 
 class OpenAIGateway:
@@ -341,8 +343,12 @@ class OpenAIGateway:
         2. Если пишет оскорбления, унижения, ругательства
            (например: "Пошел ты", "иди нахуй", "блять"),
            напиши [STOP] в начале ответа.
+
+        3. Если клиент просит связаться с живым человеком, менеджером или оператором
+           (например: "Позовите менеджера", "Хочу поговорить с человеком", "Оператор", "Менеджер", "Человек", "Живой оператор", "Свяжите с менеджером"),
+           напиши [MANAGER] в начале ответа.
         
-        3. Если пользователь просит начать оформление или упоминает товар,
+        4. Если пользователь просит начать оформление или упоминает товар,
            (например: "Давайте следующие пакеты", "Хочу ещё ролик", "Оформим диски", "Продолжаем, ножницы", "У меня же еще ножницы")
            которого НЕТ в `buyers_list`, но он ЕСТЬ в `articles_list`, ты должен начать ответ со специальной команды.
            напиши [SWITCH:ID] где ID — числовой идентификатор из `articles_list`.
@@ -430,6 +436,9 @@ class OpenAIGateway:
         - Если клиент ЯВНО называет конкретный товар (например "ролик", "губки", "носки", "салфетка") — подтвердить выбор товара и ДОБАВЬ в начало ответа: [ARTICLE:ID]
         - Добавляй [ARTICLE:ID] ТОЛЬКО когда клиент ОДНОЗНАЧНО выбрал товар
         - Если клиент выбрал несколько товаров то перечисли их так [ARTICLE:ID1,ID2,ID3]
+        - Если клиент просит связаться с живым человеком, менеджером или оператором
+          (например: "Позовите менеджера", "Хочу поговорить с человеком", "Оператор", "Менеджер", "Человек", "Живой оператор", "Свяжите с менеджером"),
+          напиши [MANAGER] в начале ответа.
                 
         ПРИМЕР 1 (неопределённый вопрос):
         Клиент: "это какое? фото можно?"
@@ -545,12 +554,17 @@ def _parse_answer_result(result: str | None) -> AnswerResult:
         return {
             "response": "Пожалуйста, следуйте инструкциям на экране.",
             "wants_to_stop": False,
+            "wants_manager": False,
             "switch_to_article_id": None,
         }
 
     wants_to_stop = result.startswith("[STOP]")
     if wants_to_stop:
         result = result.replace("[STOP]", "").strip()
+
+    wants_manager = "[MANAGER]" in result
+    if wants_manager:
+        result = result.replace("[MANAGER]", "").strip()
 
     switch_to_article_id = None
     if "[SWITCH:" in result:
@@ -562,6 +576,7 @@ def _parse_answer_result(result: str | None) -> AnswerResult:
     return AnswerResult(
         response=result,
         wants_to_stop=wants_to_stop,
+        wants_manager=wants_manager,
         switch_to_article_id=switch_to_article_id,
     )
 
@@ -569,7 +584,11 @@ def _parse_answer_result(result: str | None) -> AnswerResult:
 def _parse_predialog_result(result: str | None) -> PredialogResult:
     """Парсит результат pre-dialog ответа GPT и извлекает article_ids"""
     if not result:
-        return PredialogResult(response="Напишите название товара, по которому хотите кэшбек", article_ids=[])
+        return PredialogResult(response="Напишите название товара, по которому хотите кэшбек", article_ids=[], wants_manager=False)
+
+    wants_manager = "[MANAGER]" in result
+    if wants_manager:
+        result = result.replace("[MANAGER]", "").strip()
 
     article_ids: list[int] = []
     if "[ARTICLE:" in result:
@@ -579,4 +598,4 @@ def _parse_predialog_result(result: str | None) -> PredialogResult:
             article_ids = [int(id_str) for id_str in ids_str.split(",") if id_str]
             result = re.sub(r"\[ARTICLE:[\d,]+\]", "", result).strip()
 
-    return PredialogResult(response=result, article_ids=article_ids)
+    return PredialogResult(response=result, article_ids=article_ids, wants_manager=wants_manager)

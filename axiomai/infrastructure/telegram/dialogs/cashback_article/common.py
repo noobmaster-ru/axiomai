@@ -136,8 +136,22 @@ async def _process_dialog_messages(
     response_text = result["response"]
     wants_to_stop = result["wants_to_stop"]
     switch_to_article_id = result["switch_to_article_id"]
+    wants_manager = result["wants_manager"]
 
     await add_to_chat_history(di_container, chat_id, cabinet.id, combined_text, response_text)
+
+    if wants_manager:
+        chat_link = f"https://t.me/{username}" if username else None
+        user_ref = f'<a href="{chat_link}">@{username}</a>' if username else fullname
+        await bot.send_message(
+            chat_id=cabinet.business_account_id,
+            text=(
+                f"👤 Пользователь {user_ref} просит связаться с менеджером\n\n"
+                f"💬 Сообщение: <code>{combined_text}</code>\n\n"
+                + (f'<a href="{chat_link}">Перейти к переписке</a>' if chat_link else "")
+            ),
+        )
+        return
 
     await bot.send_chat_action(
         chat_id=chat_id,

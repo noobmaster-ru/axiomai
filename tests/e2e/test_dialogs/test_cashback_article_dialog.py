@@ -30,7 +30,7 @@ async def test_exact_ok_word_silently_ignores_message(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
 
     await bot_client.send_business("хочу кешбек")
@@ -58,11 +58,11 @@ async def test_non_exact_ok_text_triggers_openai_response(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.answer_user_question = AsyncMock(return_value={
         "response": "Рад помочь!",
-        "wants_to_stop": False,
+        "wants_to_stop": False, "wants_manager": False,
         "switch_to_article_id": None,
     })
 
@@ -116,7 +116,7 @@ async def test_cashback_article_when_not_classified_message(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Здравствуйте! У нас есть товары для кешбека.",
-        "article_ids": [],
+        "article_ids": [], "wants_manager": False,
     })
 
     await bot_client.send_business("хочу кешбек")
@@ -161,7 +161,7 @@ async def test_cashback_article_filters_already_bought_articles(
     openai_gateway = await di_container.get(OpenAIGateway)
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Здравствуйте! У нас есть товары для кешбека.",
-        "article_ids": [],
+        "article_ids": [], "wants_manager": False,
     })
 
     await bot_client.send_business("хочу кешбек")
@@ -207,7 +207,7 @@ async def test_cashback_article_q1_input_order_screenshot(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
@@ -244,7 +244,7 @@ async def test_cashback_article_q2_input_feedback_screenshot(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
@@ -287,7 +287,7 @@ async def test_cashback_article_q3_input_cut_labels_screenshot(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
@@ -337,7 +337,7 @@ async def test_cashback_article_q4_input_requisites(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
@@ -396,7 +396,7 @@ async def test_cashback_article_switch_to_second_article_during_dialog(
     # First message classifies article1
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article1.id],
+        "article_ids": [article1.id], "wants_manager": False,
     })
 
     await bot_client.send_business("хочу кешбек")
@@ -408,7 +408,7 @@ async def test_cashback_article_switch_to_second_article_during_dialog(
     # User sends text requesting second article during dialog (switch_to_article_id)
     openai_gateway.answer_user_question = AsyncMock(return_value={
         "response": "Хорошо, добавляю второй артикул!",
-        "wants_to_stop": False,
+        "wants_to_stop": False, "wants_manager": False,
         "switch_to_article_id": article2.id,
     })
 
@@ -440,7 +440,7 @@ async def test_two_articles_full_q1_order_screenshots(
     # First message classifies article1
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.",
-        "article_ids": [article1.id],
+        "article_ids": [article1.id], "wants_manager": False,
     })
 
     await bot_client.send_business("хочу кешбек")
@@ -448,7 +448,7 @@ async def test_two_articles_full_q1_order_screenshots(
     # User requests second article
     openai_gateway.answer_user_question = AsyncMock(return_value={
         "response": "Добавляю второй артикул!",
-        "wants_to_stop": False,
+        "wants_to_stop": False, "wants_manager": False,
         "switch_to_article_id": article2.id,
     })
 
@@ -504,14 +504,14 @@ async def test_two_articles_full_flow_q1_q2_q3(
     # Start dialog with article1
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.",
-        "article_ids": [article1.id],
+        "article_ids": [article1.id], "wants_manager": False,
     })
     await bot_client.send_business("хочу кешбек")
 
     # Switch to add article2
     openai_gateway.answer_user_question = AsyncMock(return_value={
         "response": "Добавляю второй артикул!",
-        "wants_to_stop": False,
+        "wants_to_stop": False, "wants_manager": False,
         "switch_to_article_id": article2.id,
     })
     await bot_client.send_business("хочу ещё второй")
@@ -595,7 +595,7 @@ async def test_switch_back_to_completed_article_while_pending_another(
     # Step 1: User requests article X
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Оформляем артикул X.",
-        "article_ids": [article_x.id],
+        "article_ids": [article_x.id], "wants_manager": False,
     })
     await bot_client.send_business("хочу кешбек")
 
@@ -620,7 +620,7 @@ async def test_switch_back_to_completed_article_while_pending_another(
     # Step 3: User requests switch to article Y (without sending X's feedback yet)
     openai_gateway.answer_user_question = AsyncMock(return_value={
         "response": "Добавляю артикул Y!",
-        "wants_to_stop": False,
+        "wants_to_stop": False, "wants_manager": False,
         "switch_to_article_id": article_y.id,
     })
     await bot_client.send_business("хочу ещё один артикул")
@@ -635,7 +635,7 @@ async def test_switch_back_to_completed_article_while_pending_another(
     # CreateBuyer returns existing buyer for X (already has is_ordered=True)
     openai_gateway.answer_user_question = AsyncMock(return_value={
         "response": "Возвращаемся к артикулу X.",
-        "wants_to_stop": False,
+        "wants_to_stop": False, "wants_manager": False,
         "switch_to_article_id": article_x.id,
     })
     await bot_client.send_business("вернись к первому артикулу")
@@ -693,7 +693,7 @@ async def test_chat_history_saved_on_order_screenshot_error(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(side_effect=Exception("API error"))
     await bot_client.send_business("хочу кешбек")
@@ -722,7 +722,7 @@ async def test_chat_history_saved_on_feedback_screenshot_error(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
@@ -759,7 +759,7 @@ async def test_chat_history_saved_on_cut_labels_screenshot_error(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
@@ -804,7 +804,7 @@ async def test_multiple_articles_selected_from_predialog(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Оформляем оба товара.",
-        "article_ids": [article1.id, article2.id],
+        "article_ids": [article1.id, article2.id], "wants_manager": False,
     })
 
     await bot_client.send_business("хочу ролик и губку")
@@ -843,7 +843,7 @@ async def test_cashback_article_q4_not_enough_balance_sends_message(
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
@@ -897,7 +897,7 @@ async def test_feedback_window_shows_no_text_reminder_for_fifth_lead(
     openai_gateway = await di_container.get(OpenAIGateway)
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
@@ -930,7 +930,7 @@ async def test_feedback_window_no_reminder_for_non_fifth_lead(
     openai_gateway = await di_container.get(OpenAIGateway)
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Отлично! Начнём оформление кешбека.",
-        "article_ids": [article.id],
+        "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,

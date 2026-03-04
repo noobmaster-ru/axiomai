@@ -58,7 +58,7 @@ async def test_order_screenshot_first_error_sends_text_to_user(
     openai_gateway = await di_container.get(OpenAIGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
-        "response": "Начнём оформление.", "article_ids": [article.id],
+        "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
     })
     _mock_order_error(openai_gateway, article, cancel_reason="Неверный скриншот заказа")
 
@@ -84,7 +84,7 @@ async def test_order_screenshot_second_error_sends_text_to_user(
     openai_gateway = await di_container.get(OpenAIGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
-        "response": "Начнём оформление.", "article_ids": [article.id],
+        "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
     })
     _mock_order_error(openai_gateway, article, cancel_reason="Неверный скриншот заказа")
 
@@ -115,7 +115,7 @@ async def test_order_screenshot_third_error_notifies_manager(
     openai_gateway = await di_container.get(OpenAIGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
-        "response": "Начнём оформление.", "article_ids": [article.id],
+        "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
     })
     _mock_order_error(openai_gateway, article, cancel_reason="Неверный скриншот заказа")
 
@@ -143,7 +143,7 @@ async def test_order_screenshot_price_missing_first_error_sends_text_to_user(
     openai_gateway = await di_container.get(OpenAIGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
-        "response": "Начнём оформление.", "article_ids": [article.id],
+        "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
@@ -176,7 +176,7 @@ async def test_order_screenshot_price_missing_third_error_notifies_manager(
     openai_gateway = await di_container.get(OpenAIGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
-        "response": "Начнём оформление.", "article_ids": [article.id],
+        "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
     })
     openai_gateway.classify_order_screenshot = AsyncMock(return_value={
         "is_order": True,
@@ -207,7 +207,7 @@ async def test_feedback_screenshot_first_error_sends_text_to_user(
     openai_gateway = await di_container.get(OpenAIGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
-        "response": "Начнём оформление.", "article_ids": [article.id],
+        "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
     })
     _mock_order_ok(openai_gateway, article)
     _mock_feedback_error(openai_gateway, cancel_reason="Неверный скриншот отзыва")
@@ -238,7 +238,7 @@ async def test_feedback_screenshot_third_error_notifies_manager(
     openai_gateway = await di_container.get(OpenAIGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
-        "response": "Начнём оформление.", "article_ids": [article.id],
+        "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
     })
     _mock_order_ok(openai_gateway, article)
     _mock_feedback_error(openai_gateway, cancel_reason="Неверный скриншот отзыва")
@@ -267,7 +267,7 @@ async def test_cut_labels_screenshot_first_error_sends_text_to_user(
     openai_gateway = await di_container.get(OpenAIGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
-        "response": "Начнём оформление.", "article_ids": [article.id],
+        "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
     })
     _mock_order_ok(openai_gateway, article)
     _mock_feedback_ok(openai_gateway, article)
@@ -297,7 +297,7 @@ async def test_cut_labels_screenshot_third_error_notifies_manager(
     openai_gateway = await di_container.get(OpenAIGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
-        "response": "Начнём оформление.", "article_ids": [article.id],
+        "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
     })
     _mock_order_ok(openai_gateway, article)
     _mock_feedback_ok(openai_gateway, article)
