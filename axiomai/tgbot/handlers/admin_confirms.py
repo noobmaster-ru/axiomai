@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery
 from dishka import FromDishka
 from dishka.integrations.aiogram import inject
@@ -84,3 +85,12 @@ async def admin_reject_payment(
         return
 
     await callback.message.edit_text(callback.message.text + "\n\n❌ Оплата отклонена.")
+
+
+@router.callback_query(F.data == "manager_handled")
+async def manager_handled_callback(callback: CallbackQuery) -> None:
+    await callback.answer("✅ Обработано")
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        await callback.message.edit_text(callback.message.text + "\n\n✅ Обработано")

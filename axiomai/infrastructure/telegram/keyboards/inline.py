@@ -16,3 +16,11 @@ def build_payment_admin_keyboard(payment_id: int) -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+def build_manager_handled_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Обработано", callback_data="manager_handled")]
+        ]
+    )

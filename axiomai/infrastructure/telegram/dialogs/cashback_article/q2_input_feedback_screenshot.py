@@ -26,6 +26,7 @@ from axiomai.infrastructure.telegram.dialogs.cashback_article.common import (
     get_pending_nm_ids_for_step,
 )
 from axiomai.infrastructure.telegram.dialogs.states import CashbackArticleStates
+from axiomai.infrastructure.telegram.keyboards.inline import build_manager_handled_keyboard
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +171,7 @@ async def _process_feedback_screenshot_background(  # noqa: C901, PLR0915
                 f"<code>{cancel_reason}</code>\n\n"
                 + (f'<a href="{chat_link}">Перейти к переписке</a>' if chat_link else "")
             ),
+            reply_markup=build_manager_handled_keyboard(),
         )
         return
 
