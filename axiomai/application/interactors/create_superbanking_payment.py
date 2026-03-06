@@ -217,6 +217,6 @@ async def send_receipt_after_confirm(
 
     await bot.send_message(
         telegram_id,
-        f"Также мы будем Вам очень благодарны, если Вы оставите положительный отзыв о нас в чате отзывов",
+        "Также мы будем Вам очень благодарны, если Вы оставите положительный отзыв о нас в чате отзывов",
         business_connection_id=business_connection_id,
     )
