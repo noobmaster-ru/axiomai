@@ -301,7 +301,11 @@ async def test_send_receipt_marks_buyers_paid_and_deducts_balance(
 
     superbanking.confirm_operation.assert_awaited_once_with(order_number="payment-test-1")
     bot.send_document.assert_awaited_once()
-    bot.send_message.assert_awaited_once()
+    assert bot.send_message.await_count == 2
+    first_message = bot.send_message.await_args_list[0].args[1]
+    second_message = bot.send_message.await_args_list[1].args[1]
+    assert "Подписывайтесь на наш канал" in first_message
+    assert "оставите положительный отзыв" in second_message
 
 
 @patch("axiomai.application.interactors.create_superbanking_payment.asyncio.sleep", new_callable=AsyncMock)
