@@ -214,3 +214,9 @@ async def send_receipt_after_confirm(
         f"Подписывайтесь на наш канал {WB_CHANNEL_NAME}, там будет много интересных товаров с БОЛЬШИМ кэшбеком ☺",
         business_connection_id=business_connection_id,
     )
+
+    await bot.send_message(
+        telegram_id,
+        f"Также мы будем Вам очень благодарны, если Вы оставите положительный отзыв о нас в чате отзывов",
+        business_connection_id=business_connection_id,
+    )
