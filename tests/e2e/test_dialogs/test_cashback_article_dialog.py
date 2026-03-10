@@ -837,7 +837,7 @@ async def test_cashback_article_q4_not_enough_balance_sends_message(
         is_superbanking_connect=True,
     )
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
-    article = await cashback_article_factory(cabinet_id=cabinet.id)
+    article = await cashback_article_factory(cabinet_id=cabinet.id, cashback_percent=100)
     openai_gateway = await di_container.get(OpenAIGateway)
     superbanking = await di_container.get(Superbanking)
 

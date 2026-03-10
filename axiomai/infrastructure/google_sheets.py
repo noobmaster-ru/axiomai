@@ -65,20 +65,22 @@ class GoogleSheetsGateway:
             sheets_v4 = await aiogoogle.discover("sheets", "v4")
 
             response = await aiogoogle.as_service_account(
-                sheets_v4.spreadsheets.values.get(spreadsheetId=table_id, range="D2:I")
+                sheets_v4.spreadsheets.values.get(spreadsheetId=table_id, range="C2:J")
             )
 
             values = response.get("values", [])
             articles = []
             for row in values:
-                if row and len(row) >= 2 and row[1]:  # noqa: PLR2004
+                if row and len(row) >= 4 and row[3]:  # noqa: PLR2004
                     try:
-                        in_stock = row[0].upper() == "TRUE" if row[0] else False
-                        nm_id = int(row[1])
-                        image_url = row[2] if len(row) >= 3 else ""  # noqa:  PLR2004
-                        title = row[3] if len(row) >= 4 else ""  # noqa: PLR2004
-                        brand_name = row[4] if len(row) >= 5 else ""  # noqa: PLR2004
-                        instruction_text = row[5] if len(row) >= 6 else ""  # noqa: PLR2004
+                        cashback_percent = int(row[0]) if row[0] else 0
+                        # row[1] (column D) — пропускаем
+                        in_stock = row[2].upper() == "TRUE" if len(row) >= 3 and row[2] else False  # noqa: PLR2004
+                        nm_id = int(row[3])
+                        image_url = row[4] if len(row) >= 5 else ""  # noqa: PLR2004
+                        title = row[5] if len(row) >= 6 else ""  # noqa: PLR2004
+                        brand_name = row[6] if len(row) >= 7 else ""  # noqa: PLR2004
+                        instruction_text = row[7] if len(row) >= 8 else ""  # noqa: PLR2004
                     except ValueError:
                         continue
 
@@ -90,6 +92,7 @@ class GoogleSheetsGateway:
                             instruction_text=instruction_text,
                             image_url=image_url,
                             in_stock=in_stock,
+                            cashback_percent=cashback_percent,
                         )
                     )
 
@@ -109,8 +112,8 @@ class GoogleSheetsGateway:
             except HTTPError as err:
                 logger.exception("Failed to sync buyers to table.id = %s", table_id, exc_info=err)
 
-    async def update_settings(self, table_id: str, leads_balance: int, updated_at: str) -> None:
-        """Обновляет лист 'Настройка': A2 - остаток лидов, B2 - время обновления."""
+    async def update_settings(self, table_id: str, leads_balance: int, balance: int, updated_at: str) -> None:
+        """Обновляет лист 'Настройка': A2 - остаток лидов, B2 - баланс кабинета, C3 - время обновления."""
         async with self._aiogoogle as aiogoogle:
             sheets_v4 = await aiogoogle.discover("sheets", "v4")
 
@@ -118,9 +121,9 @@ class GoogleSheetsGateway:
                 await aiogoogle.as_service_account(
                     sheets_v4.spreadsheets.values.update(
                         spreadsheetId=table_id,
-                        range="Настройка!A2:B2",
+                        range="Настройка!A2:C2",
                         valueInputOption="RAW",
-                        json={"values": [[leads_balance, updated_at]]},
+                        json={"values": [[leads_balance, balance, updated_at]]},
                     )
                 )
             except HTTPError as err:
@@ -314,6 +317,6 @@ def _format_time_msk(iso_time: str) -> str:
     try:
         dt = datetime.fromisoformat(iso_time)
         dt_msk = dt.astimezone(MSK_TZ)
-        return dt_msk.strftime("%Y-%m-%d %H:%M:%S")
+        return dt_msk.strftime("%d.%m.%Y %H:%M:%S")
     except (ValueError, TypeError):
         return iso_time

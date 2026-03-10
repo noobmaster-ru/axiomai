@@ -9,3 +9,4 @@ class CashbackArticle:
     instruction_text: str
     image_url: str
     in_stock: bool
+    cashback_percent: int
