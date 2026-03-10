@@ -193,7 +193,7 @@ def cashback_table_factory(session, cabinet_factory):
 
 @pytest.fixture
 def cashback_article_factory(session, cabinet_factory):
-    async def get_cashback_article(cabinet_id: int | None = None, *, in_stock: bool = True) -> CashbackArticle:
+    async def get_cashback_article(cabinet_id: int | None = None, *, in_stock: bool = True, cashback_percent: int = 0) -> CashbackArticle:
         if not cabinet_id:
             cabinet = await cabinet_factory()
             cabinet_id = cabinet.id
@@ -206,6 +206,7 @@ def cashback_article_factory(session, cabinet_factory):
             image_url="http://example.com/image.jpg",
             instruction_text="Test Instruction",
             in_stock=in_stock,
+            cashback_percent=cashback_percent,
         )
         session.add(article)
         await session.flush()

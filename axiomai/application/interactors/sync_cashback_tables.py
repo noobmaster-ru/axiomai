@@ -49,6 +49,7 @@ class SyncCashbackTables:
                     article.brand_name = dto.brand_name
                     article.instruction_text = dto.instruction_text
                     article.in_stock = dto.in_stock
+                    article.cashback_percent = dto.cashback_percent
                     article.is_deleted = False
                 else:
                     new_article = CashbackArticle(
@@ -59,6 +60,7 @@ class SyncCashbackTables:
                         brand_name=dto.brand_name,
                         instruction_text=dto.instruction_text,
                         in_stock=dto.in_stock,
+                        cashback_percent=dto.cashback_percent,
                     )
                     await self._cashback_table_gateway.create_article(new_article)
 
@@ -79,8 +81,8 @@ class SyncCashbackTables:
                 cabinet = await self._cabinet_gateway.get_cabinet_by_id(table.cabinet_id)
                 if cabinet:
                     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))  # MSK timezone
-                    updated_at = now.strftime("%Y-%m-%d %H:%M:%S")
-                    await self._google_sheets_gateway.update_settings(table.table_id, cabinet.leads_balance, updated_at)
+                    updated_at = now.strftime("%d.%m.%Y %H:%M:%S")
+                    await self._google_sheets_gateway.update_settings(table.table_id, cabinet.leads_balance, cabinet.balance, updated_at)
             except Exception as e:
                 logger.exception("failed to update settings sheet %s", table.table_id, exc_info=e)
 
