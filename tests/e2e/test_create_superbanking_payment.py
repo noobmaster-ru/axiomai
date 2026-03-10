@@ -13,6 +13,7 @@ from axiomai.application.interactors.create_superbanking_payment import (
 )
 from axiomai.constants import AXIOMAI_COMMISSION, SUPERBANKING_COMMISSION
 from axiomai.infrastructure.database.models import Buyer, Cabinet
+from axiomai.infrastructure.database.models.cashback_table import CashbackArticle
 from axiomai.infrastructure.database.models.superbanking import SuperbankingPayout
 from axiomai.infrastructure.superbanking import Superbanking
 
@@ -216,6 +217,12 @@ async def test_create_superbanking_payment_raises_not_enough_balance(
     buyer, cabinet = await _create_buyer(
         session, cabinet_factory, amount=total_amount, cabinet_balance=total_charge - 1
     )
+    article = CashbackArticle(
+        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
+        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
+    )
+    session.add(article)
+    await session.flush()
     superbanking = await di_container.get(Superbanking)
     superbanking.create_payment = AsyncMock()
     superbanking.sign_payment = AsyncMock()
@@ -241,6 +248,12 @@ async def test_create_superbanking_payment_succeeds_with_exact_balance(
     buyer, cabinet = await _create_buyer(
         session, cabinet_factory, amount=total_amount, cabinet_balance=total_charge
     )
+    article = CashbackArticle(
+        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
+        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
+    )
+    session.add(article)
+    await session.flush()
     superbanking = await di_container.get(Superbanking)
     superbanking.create_payment = AsyncMock(return_value="tx-exact")
     superbanking.sign_payment = AsyncMock(return_value=True)
@@ -274,7 +287,11 @@ async def test_send_receipt_marks_buyers_paid_and_deducts_balance(
         nm_id=777,
         amount=200,
     )
-    session.add(buyer)
+    article = CashbackArticle(
+        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
+        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
+    )
+    session.add_all([buyer, article])
     await session.flush()
 
     superbanking = await di_container.get(Superbanking)
@@ -332,6 +349,15 @@ async def test_send_receipt_multiple_buyers_all_marked_paid(
         amount=400,
     )
     session.add_all([buyer1, buyer2])
+    article1 = CashbackArticle(
+        cabinet_id=cabinet.id, nm_id=111, title="T", brand_name="B",
+        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
+    )
+    article2 = CashbackArticle(
+        cabinet_id=cabinet.id, nm_id=222, title="T", brand_name="B",
+        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
+    )
+    session.add_all([article1, article2])
     await session.flush()
 
     superbanking = await di_container.get(Superbanking)
@@ -421,7 +447,11 @@ async def test_send_receipt_retries_on_transient_error_then_succeeds(
         nm_id=777,
         amount=200,
     )
-    session.add(buyer)
+    article = CashbackArticle(
+        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
+        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
+    )
+    session.add_all([buyer, article])
     await session.flush()
 
     superbanking = await di_container.get(Superbanking)
@@ -450,3 +480,48 @@ async def test_send_receipt_retries_on_transient_error_then_succeeds(
 
     assert superbanking.confirm_operation.await_count == 2
     bot.send_document.assert_awaited_once()
+
+
+@patch("axiomai.application.interactors.create_superbanking_payment.asyncio.sleep", new_callable=AsyncMock)
+async def test_send_receipt_deducts_half_balance_with_50_percent_cashback(
+    mock_sleep, di_container, session, cabinet_factory
+):
+    cabinet = await cabinet_factory(
+        balance=1000, is_superbanking_connect=True, business_connection_id="biz-50"
+    )
+    buyer = Buyer(
+        cabinet_id=cabinet.id,
+        username="test_user",
+        fullname="Test User",
+        telegram_id=123456,
+        nm_id=777,
+        amount=200,
+    )
+    article = CashbackArticle(
+        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
+        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=50,
+    )
+    session.add_all([buyer, article])
+    await session.flush()
+
+    superbanking = await di_container.get(Superbanking)
+    superbanking.confirm_operation = AsyncMock(return_value="https://example.com/receipt.pdf")
+
+    bot = await di_container.get(Bot)
+    bot.send_document = AsyncMock()
+    bot.send_message = AsyncMock()
+
+    await send_receipt_after_confirm(
+        di_container=di_container,
+        telegram_id=123456,
+        business_connection_id="biz-50",
+        cabinet_id=cabinet.id,
+        order_number="payment-50pct",
+    )
+
+    await session.refresh(buyer)
+    await session.refresh(cabinet)
+
+    # amount=200, cashback_percent=50 → cashback_charge = 200 * 50 // 100 = 100
+    expected_charge = 100 + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
+    assert cabinet.balance == 1000 - expected_charge

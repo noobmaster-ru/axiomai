@@ -18,6 +18,7 @@ from axiomai.constants import (
 )
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
+from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.gateways.superbanking_payout import SuperbankingPayoutGateway
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
 from axiomai.infrastructure.superbanking import Superbanking
@@ -30,6 +31,7 @@ class CreateSuperbankingPayment:
         self,
         buyer_gateway: BuyerGateway,
         cabinet_gateway: CabinetGateway,
+        cashback_table_gateway: CashbackTableGateway,
         superbanking_payout_gateway: SuperbankingPayoutGateway,
         transaction_manager: TransactionManager,
         superbanking: Superbanking,
@@ -37,6 +39,7 @@ class CreateSuperbankingPayment:
     ) -> None:
         self._buyer_gateway = buyer_gateway
         self._cabinet_gateway = cabinet_gateway
+        self._cashback_table_gateway = cashback_table_gateway
         self._superbanking_payout_gateway = superbanking_payout_gateway
         self._transaction_manager = transaction_manager
         self._superbanking = superbanking
@@ -58,10 +61,8 @@ class CreateSuperbankingPayment:
         buyers = await self._buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(telegram_id, cabinet_id)
 
         nm_ids = []
-        total_amount = 0
 
         part_amount = (amount or 0) // len(buyers)
-
         for buyer in buyers:
             buyer.phone_number = phone_number
             buyer.bank = bank
@@ -70,7 +71,6 @@ class CreateSuperbankingPayment:
                 buyer.amount = part_amount
 
             nm_ids.append(buyer.nm_id)
-            total_amount += buyer.amount
 
         await self._transaction_manager.commit()
 
@@ -82,7 +82,10 @@ class CreateSuperbankingPayment:
             await self._transaction_manager.commit()
             raise SkipSuperbankingError(cabinet_id=cabinet.id, is_superbanking_connect=cabinet.is_superbanking_connect)
 
-        total_charge = total_amount + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
+        articles = await self._cashback_table_gateway.get_cashback_articles_by_nm_ids(nm_ids)
+        articles_by_nm_id = {a.nm_id: a for a in articles}
+        cashback_charge = _calc_cashback_charge(buyers, articles_by_nm_id)
+        total_charge = cashback_charge + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
 
         if cabinet.balance < total_charge:
             raise NotEnoughBalanceError
@@ -92,14 +95,14 @@ class CreateSuperbankingPayment:
             nm_ids=nm_ids,
             phone_number=phone_number,
             bank=bank,
-            amount=total_amount,
+            amount=cashback_charge,
         )
         payout = await self._superbanking_payout_gateway.create_payout(
             telegram_id=telegram_id,
             nm_ids=nm_ids,
             phone_number=phone_number,
             bank=bank,
-            amount=total_amount,
+            amount=cashback_charge,
             order_number=order_number,
         )
 
@@ -107,7 +110,7 @@ class CreateSuperbankingPayment:
             cabinet_transaction_id = await self._superbanking.create_payment(
                 phone_number=phone_number,
                 bank_name_rus=bank,
-                amount=total_amount,
+                amount=cashback_charge,
                 order_number=payout.order_number,
             )
         except CreatePaymentError:
@@ -195,14 +198,18 @@ async def send_receipt_after_confirm(
     async with di_container() as r_container:
         buyer_gateway = await r_container.get(BuyerGateway)
         cabinet_gateway = await r_container.get(CabinetGateway)
+        cashback_table_gateway = await r_container.get(CashbackTableGateway)
         transaction_manager = await r_container.get(TransactionManager)
 
         buyers = await buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(telegram_id, cabinet_id)
         cabinet = await cabinet_gateway.get_cabinet_by_id(cabinet_id)
 
         if buyers and cabinet:
-            total_amount = sum(b.amount for b in buyers if b.amount)
-            total_charge = total_amount + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
+            nm_ids = [b.nm_id for b in buyers]
+            articles = await cashback_table_gateway.get_cashback_articles_by_nm_ids(nm_ids)
+            articles_by_nm_id = {a.nm_id: a for a in articles}
+            cashback_charge = _calc_cashback_charge(buyers, articles_by_nm_id)
+            total_charge = cashback_charge + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
             for buyer in buyers:
                 buyer.is_superbanking_paid = True
                 buyer.is_paid_manually = True
@@ -220,3 +227,12 @@ async def send_receipt_after_confirm(
         "Также мы будем Вам очень благодарны, если Вы оставите положительный отзыв о нас в чате отзывов",
         business_connection_id=business_connection_id,
     )
+
+
+def _calc_cashback_charge(buyers: list, articles_by_nm_id: dict) -> int:
+    charge = 0
+    for buyer in buyers:
+        article = articles_by_nm_id.get(buyer.nm_id)
+        if article and buyer.amount:
+            charge += buyer.amount * article.cashback_percent // 100
+    return charge

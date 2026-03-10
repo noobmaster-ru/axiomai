@@ -20,8 +20,8 @@ async def test_sync_cashback_tables_creates_articles(
     cashback_table = await cashback_table_factory(status=CashbackTableStatus.VERIFIED)
 
     articles_dto = [
-        CashbackArticleDTO(nm_id=123, title="Product 1", brand_name="Brand A", instruction_text="Instruction 1", image_url="http://img1.jpg", in_stock=True),
-        CashbackArticleDTO(nm_id=456, title="Product 2", brand_name="Brand B", instruction_text="Instruction 2", image_url="http://img2.jpg", in_stock=False),
+        CashbackArticleDTO(nm_id=123, title="Product 1", brand_name="Brand A", instruction_text="Instruction 1", image_url="http://img1.jpg", in_stock=True, cashback_percent=10),
+        CashbackArticleDTO(nm_id=456, title="Product 2", brand_name="Brand B", instruction_text="Instruction 2", image_url="http://img2.jpg", in_stock=False, cashback_percent=15),
     ]
     sync_cashback_tables._google_sheets_gateway.get_cashback_articles = AsyncMock(return_value=articles_dto)
 
@@ -59,12 +59,13 @@ async def test_sync_cashback_tables_deletes_removed_articles(
         instruction_text="Old Instruction",
         image_url="http://old.jpg",
         in_stock=True,
+        cashback_percent=5,
     )
     session.add(old_article)
     await session.flush()
 
     new_articles_dto = [
-        CashbackArticleDTO(nm_id=111, title="New Product", brand_name="New Brand", instruction_text="New Instruction", image_url="http://new.jpg", in_stock=True),
+        CashbackArticleDTO(nm_id=111, title="New Product", brand_name="New Brand", instruction_text="New Instruction", image_url="http://new.jpg", in_stock=True, cashback_percent=20),
     ]
     sync_cashback_tables._google_sheets_gateway.get_cashback_articles = AsyncMock(return_value=new_articles_dto)
 
@@ -94,13 +95,14 @@ async def test_sync_cashback_tables_updates_existing_articles(
         instruction_text="Old Instruction",
         image_url="http://old.jpg",
         in_stock=False,
+        cashback_percent=5,
     )
     session.add(existing_article)
     await session.flush()
     article_id = existing_article.id
 
     updated_dto = [
-        CashbackArticleDTO(nm_id=123, title="New Title", brand_name="New Brand", instruction_text="New Instruction", image_url="http://new.jpg", in_stock=True),
+        CashbackArticleDTO(nm_id=123, title="New Title", brand_name="New Brand", instruction_text="New Instruction", image_url="http://new.jpg", in_stock=True, cashback_percent=25),
     ]
     sync_cashback_tables._google_sheets_gateway.get_cashback_articles = AsyncMock(return_value=updated_dto)
 
@@ -142,7 +144,7 @@ async def test_sync_cashback_tables_continues_on_error(
         call_count += 1
         if table_id == table1.table_id:
             raise Exception("API error")
-        return [CashbackArticleDTO(nm_id=777, title="Product", brand_name="Brand", instruction_text="Instr", image_url="http://img.jpg", in_stock=True)]
+        return [CashbackArticleDTO(nm_id=777, title="Product", brand_name="Brand", instruction_text="Instr", image_url="http://img.jpg", in_stock=True, cashback_percent=10)]
 
     sync_cashback_tables._google_sheets_gateway.get_cashback_articles = mock_get_articles
 
