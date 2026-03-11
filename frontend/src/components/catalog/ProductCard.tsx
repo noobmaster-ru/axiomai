@@ -1,38 +1,37 @@
+import type { Article } from "../../entities/article/model";
 import "./ProductCard.css";
 
 type ProductCardProps = {
-  cashbackAmount: number;
-  imageUrl: string;
-  nmId: number;
-  onSelect?: (nmId: number) => void;
-  title: string;
-  buyoutPercent: number;
+  article: Article;
+  onSelect?: (articleId: number) => void;
 };
 
-export function ProductCard({
-  cashbackAmount,
-  imageUrl,
-  nmId,
-  onSelect,
-  title,
-  buyoutPercent,
-}: ProductCardProps) {
+export function ProductCard({ article, onSelect }: ProductCardProps) {
+  const availabilityLabel = article.inStock ? "В наличии" : "Нет в наличии";
+
   return (
-    <button className="product-card" type="button" onClick={() => onSelect?.(nmId)}>
-      <img className="product-card__image" src={imageUrl} alt={title} loading="lazy" />
+    <button className="product-card" type="button" onClick={() => onSelect?.(article.id)}>
+      <img
+        className="product-card__image"
+        src={article.imageUrl}
+        alt={article.title}
+        loading="lazy"
+      />
 
       <div className="product-card__content">
         <div className="product-card__head">
-          <h3 className="product-card__title">{title}</h3>
-          <span className="product-card__tag">{buyoutPercent}% выкуп</span>
+          <h3 className="product-card__title">{article.title}</h3>
+          <span className="product-card__tag">{availabilityLabel}</span>
         </div>
 
-        <p className="product-card__meta">Артикул {nmId}</p>
+        <p className="product-card__meta">
+          {article.brandName} · Артикул {article.nmId}
+        </p>
 
         <div className="product-card__footer">
           <div className="product-card__cashback">
             <span className="product-card__cashback-label">Кэшбэк</span>
-            <strong className="product-card__cashback-value">{cashbackAmount} ₽</strong>
+            <strong className="product-card__cashback-value">{article.cashbackPercent}%</strong>
           </div>
 
           <span className="product-card__cta">Открыть</span>

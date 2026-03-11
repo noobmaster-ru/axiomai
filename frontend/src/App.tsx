@@ -1,23 +1,63 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import "./App.css";
 import { ProductCard } from "./components/catalog/ProductCard";
 import { AppShell } from "./components/layout/AppShell";
 import { BottomNav } from "./components/navigation/BottomNav";
-import { mockProducts } from "./data/mockProducts";
+import type { Article } from "./entities/article/model";
+import { articleRepository } from "./shared/api";
 
 export default function App() {
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [isLoadingArticles, setIsLoadingArticles] = useState(true);
+  const [articlesError, setArticlesError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const deferredQuery = useDeferredValue(searchQuery);
   const normalizedQuery = deferredQuery.trim().toLowerCase();
 
-  const filteredProducts = mockProducts.filter((product) => {
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadArticles() {
+      setIsLoadingArticles(true);
+      setArticlesError("");
+
+      try {
+        const nextArticles = await articleRepository.getCatalogArticles();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setArticles(nextArticles);
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setArticlesError("Не удалось загрузить каталог. Попробуйте обновить экран позже.");
+      } finally {
+        if (isMounted) {
+          setIsLoadingArticles(false);
+        }
+      }
+    }
+
+    void loadArticles();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const filteredArticles = articles.filter((article) => {
     if (!normalizedQuery) {
       return true;
     }
 
     return (
-      product.title.toLowerCase().includes(normalizedQuery) ||
-      String(product.nmId).includes(normalizedQuery)
+      article.title.toLowerCase().includes(normalizedQuery) ||
+      article.brandName.toLowerCase().includes(normalizedQuery) ||
+      String(article.nmId).includes(normalizedQuery)
     );
   });
 
@@ -62,13 +102,19 @@ export default function App() {
         <section className="catalog-section">
           <div className="catalog-section__header">
             <h2 className="catalog-section__title">Доступные товары</h2>
-            <span className="catalog-section__meta">{filteredProducts.length}</span>
+            <span className="catalog-section__meta">
+              {isLoadingArticles ? "..." : filteredArticles.length}
+            </span>
           </div>
 
-          {filteredProducts.length ? (
+          {articlesError ? (
+            <div className="catalog-empty">{articlesError}</div>
+          ) : isLoadingArticles ? (
+            <div className="catalog-empty">Загружаем товары...</div>
+          ) : filteredArticles.length ? (
             <div className="catalog-list">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.nmId} {...product} />
+              {filteredArticles.map((article) => (
+                <ProductCard key={article.id} article={article} />
               ))}
             </div>
           ) : (
