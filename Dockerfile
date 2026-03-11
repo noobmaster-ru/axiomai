@@ -11,10 +11,6 @@ WORKDIR $APP_PATH
 
 FROM python-base AS builder-base
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc curl git \
-    && rm -rf /var/lib/apt/lists
-
 RUN pip install --no-cache-dir uv
 
 COPY ./pyproject.toml ./uv.lock ./
