@@ -1,0 +1,38 @@
+.app-shell {
+  min-height: 100svh;
+  padding:
+    var(--shell-padding-top)
+    var(--shell-padding-inline-end)
+    var(--shell-padding-bottom)
+    var(--shell-padding-inline-start);
+  background: var(--color-bg-canvas);
+}
+
+.app-shell__frame {
+  width: min(100%, var(--layout-shell-max-width));
+  min-height: calc(100svh - var(--safe-top) - var(--safe-bottom));
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-4);
+}
+
+.app-shell__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.app-shell__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.app-shell__bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-index-sticky);
+  padding-top: var(--space-1);
+}

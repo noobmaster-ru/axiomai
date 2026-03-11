@@ -1,0 +1,95 @@
+.product-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-4);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-card-soft);
+  text-align: left;
+}
+
+.product-card__image {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-3);
+  object-fit: cover;
+  background: var(--color-surface-muted);
+}
+
+.product-card__content {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.product-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.product-card__title {
+  margin: 0;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-snug);
+}
+
+.product-card__tag {
+  flex-shrink: 0;
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-brand);
+  color: var(--color-brand-primary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.product-card__meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body-sm);
+}
+
+.product-card__footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.product-card__cashback {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.product-card__cashback-label {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-caption);
+}
+
+.product-card__cashback-value {
+  font-size: var(--font-size-body-lg);
+  line-height: 1;
+}
+
+.product-card__cta {
+  color: var(--color-brand-contrast);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (max-width: 22rem) {
+  .product-card {
+    grid-template-columns: 4.75rem minmax(0, 1fr);
+  }
+
+  .product-card__head,
+  .product-card__footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
