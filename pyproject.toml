@@ -17,6 +17,8 @@ dependencies = [
     "psycopg-binary>=3.3.2",
     "redis>=7.1.0",
     "sqlalchemy>=2.0.45",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
 ]
 
 [dependency-groups]
