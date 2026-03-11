@@ -24,6 +24,7 @@ from axiomai.application.interactors.refill_balance.mark_payment_waiting_confirm
 )
 from axiomai.application.interactors.refill_balance.refill_balance import RefillBalance
 from axiomai.application.interactors.sync_cashback_tables import SyncCashbackTables
+from axiomai.application.interactors.update_buyer_screenshot import UpdateBuyerScreenshot
 from axiomai.config import Config, MessageDebouncerConfig, OpenAIConfig, SuperbankingConfig
 from axiomai.infrastructure.database.gateways.balance_notification import BalanceNotificationGateway
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
@@ -129,5 +130,19 @@ class ObserverInteractorsProvider(Provider):
         ObserveCashbackTables,
         ObserveInactiveReminders,
         SyncCashbackTables,
+        scope=Scope.REQUEST,
+    )
+
+
+class ApiInteractorsProvider(Provider):
+    @provide(scope=Scope.APP)
+    async def superbanking(self, superbanking_config: SuperbankingConfig) -> AsyncIterable[Superbanking]:
+        async with ClientSession() as client_session:
+            yield Superbanking(superbanking_config, client_session)
+
+    interactors = provide_all(
+        CreateBuyer,
+        UpdateBuyerScreenshot,
+        CreateSuperbankingPayment,
         scope=Scope.REQUEST,
     )

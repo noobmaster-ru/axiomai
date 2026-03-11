@@ -126,6 +126,9 @@ class Superbanking:
             bank["bankName"].upper(): bank["nameRus"] for bank in self._superbanking_banks
         }
 
+    def get_banks(self) -> list[dict[str, str]]:
+        return [{"bank_name": bank["bankName"], "name_rus": bank["nameRus"]} for bank in self._superbanking_banks]
+
     def get_bank_name_rus(self, bank_alias: str) -> str | None:
         normalized = re.sub(r"[\s\-]", "", bank_alias.lower())
         bank_name = BANK_ALIASES.get(normalized)

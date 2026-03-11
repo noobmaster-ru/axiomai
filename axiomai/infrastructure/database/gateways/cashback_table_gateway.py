@@ -99,6 +99,33 @@ class CashbackTableGateway(Gateway):
 
         return list(articles)
 
+    async def get_all_in_stock_articles(self, telegram_id: int) -> list[CashbackArticle]:
+        already_bought_subq = (
+            select(Buyer.id)
+            .where(
+                Buyer.telegram_id == telegram_id,
+                Buyer.nm_id == CashbackArticle.nm_id,
+                Buyer.cabinet_id == CashbackArticle.cabinet_id,
+                or_(
+                    and_(
+                        Buyer.is_ordered.is_(True),
+                        Buyer.is_left_feedback.is_(True),
+                        Buyer.is_cut_labels.is_(True),
+                    ),
+                    Buyer.is_canceled.is_(True),
+                ),
+            )
+            .exists()
+        )
+        articles = await self._session.scalars(
+            select(CashbackArticle).where(
+                CashbackArticle.in_stock.is_(True),
+                CashbackArticle.is_deleted.is_(False),
+                ~already_bought_subq,
+            )
+        )
+        return list(articles)
+
     async def get_cashback_article_by_id(self, article_id: int) -> CashbackArticle:
         return await self._session.scalar(select(CashbackArticle).where(CashbackArticle.id == article_id))
 

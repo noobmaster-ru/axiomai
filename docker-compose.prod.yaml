@@ -18,6 +18,17 @@ services:
       - ./sunny-might-477012-c4-04c66c69a92f.json:/app/sunny-might-477012-c4-04c66c69a92f.json:ro
     restart: unless-stopped
     command: "python -m axiomai.observer"
+  api:
+    image: ghcr.io/noobmaster-ru/axiomai:main
+    container_name: axiomai.api.prod
+    env_file:
+      - ".env"
+    volumes:
+      - ./assets:/app/assets
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    command: "python -m axiomai.api"
   postgres_migration:
     image: ghcr.io/noobmaster-ru/axiomai:main
     container_name: axiomai.postgres.migration.prod

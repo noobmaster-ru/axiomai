@@ -47,12 +47,13 @@ class CreateSuperbankingPayment:
 
     async def execute(
         self,
-        *,
         telegram_id: int,
         cabinet_id: int,
         phone_number: str,
         bank: str,
-        amount: int | None
+        amount: int | None,
+        *,
+        send_notifications: bool = True,
     ) -> str:
         cabinet = await self._cabinet_gateway.get_cabinet_by_id(cabinet_id)
         if not cabinet:
@@ -136,6 +137,7 @@ class CreateSuperbankingPayment:
                 business_connection_id=cabinet.business_connection_id,
                 cabinet_id=cabinet_id,
                 order_number=order_number,
+                send_notifications=send_notifications
             )
         )
         task.add_done_callback(lambda _: None)
@@ -149,6 +151,8 @@ async def send_receipt_after_confirm(
     business_connection_id: str,
     cabinet_id: int,
     order_number: str,
+    *,
+    send_notifications: bool = True,
 ) -> None:
     superbanking = await di_container.get(Superbanking)
     bot = await di_container.get(Bot)
@@ -187,14 +191,6 @@ async def send_receipt_after_confirm(
         )
         return
 
-    pdf_file = URLInputFile(check_url, filename="Чек.pdf")
-    await bot.send_document(
-        telegram_id,
-        document=pdf_file,
-        caption="Чек по выплате",
-        business_connection_id=business_connection_id,
-    )
-
     async with di_container() as r_container:
         buyer_gateway = await r_container.get(BuyerGateway)
         cabinet_gateway = await r_container.get(CabinetGateway)
@@ -215,6 +211,17 @@ async def send_receipt_after_confirm(
                 buyer.is_paid_manually = True
             cabinet.balance -= total_charge
             await transaction_manager.commit()
+
+    if not send_notifications:
+        return
+
+    pdf_file = URLInputFile(check_url, filename="Чек.pdf")
+    await bot.send_document(
+        telegram_id,
+        document=pdf_file,
+        caption="Чек по выплате",
+        business_connection_id=business_connection_id,
+    )
 
     await bot.send_message(
         telegram_id,
