@@ -5,6 +5,7 @@
 }
 
 .flow-upload-step__summary-card,
+.flow-upload-step__success-card,
 .flow-upload-step__state-card,
 .flow-upload-step__placeholder {
   border: 1px solid var(--color-border-soft);
@@ -14,6 +15,7 @@
 }
 
 .flow-upload-step__summary-card,
+.flow-upload-step__success-card,
 .flow-upload-step__state-card {
   padding: var(--space-4);
 }
@@ -63,6 +65,72 @@
   display: grid;
   gap: var(--space-3);
   text-align: center;
+}
+
+.flow-upload-step__success-card {
+  display: grid;
+  gap: var(--space-3);
+  border-color: color-mix(in srgb, var(--color-success) 28%, var(--color-border-soft));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-success) 4%, var(--color-surface-elevated)) 0%,
+      var(--color-surface-elevated) 100%
+    );
+}
+
+.flow-upload-step__success-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1.125rem;
+  background: color-mix(in srgb, var(--color-success) 18%, white);
+  position: relative;
+}
+
+.flow-upload-step__success-icon::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.7rem;
+  height: 1.1rem;
+  border-right: 0.18rem solid var(--color-success);
+  border-bottom: 0.18rem solid var(--color-success);
+  transform: translate(-50%, -62%) rotate(45deg);
+}
+
+.flow-upload-step__success-copy {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.flow-upload-step__success-title {
+  margin: 0;
+  line-height: var(--line-height-snug);
+}
+
+.flow-upload-step__success-text,
+.flow-upload-step__success-file-label {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.flow-upload-step__success-file {
+  display: grid;
+  gap: 0.125rem;
+  padding: var(--space-3);
+  border-radius: var(--radius-3);
+  background: color-mix(in srgb, var(--color-success) 6%, var(--color-surface-elevated));
+}
+
+.flow-upload-step__success-file-label {
+  font-size: var(--font-size-caption);
+}
+
+.flow-upload-step__success-file-name {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body-sm);
+  word-break: break-word;
 }
 
 .flow-upload-step--loading {

@@ -22,6 +22,8 @@ type FlowUploadStepScreenProps = {
   onContinue?: (articleId: number) => void;
   sectionCaption: string;
   sectionTitle: string;
+  successBodyText?: string;
+  successTitle?: string;
   successActionLabel?: string;
   successFallbackLabel?: string;
   title: string;
@@ -59,6 +61,8 @@ export function FlowUploadStepScreen({
   onContinue,
   sectionCaption,
   sectionTitle,
+  successBodyText = "Скрин сохранён для этого шага. Если всё верно, можно переходить дальше по сценарию.",
+  successTitle = "Фото загружено",
   successActionLabel = "Продолжить",
   successFallbackLabel = "Скрин загружен",
   title,
@@ -232,14 +236,32 @@ export function FlowUploadStepScreen({
             <p className="flow-upload-step__section-caption">{sectionCaption}</p>
           </div>
 
-          <FlowUploadField
-            label={uploadLabel}
-            description={uploadDescription}
-            file={selectedFile}
-            status={uploadStatus}
-            errorMessage={uploadError}
-            onSelectFile={handleSelectFile}
-          />
+          {uploadStatus === "success" ? (
+            <section className="flow-upload-step__success-card" aria-live="polite">
+              <span className="flow-upload-step__success-icon" aria-hidden="true" />
+
+              <div className="flow-upload-step__success-copy">
+                <h3 className="flow-upload-step__success-title">{successTitle}</h3>
+                <p className="flow-upload-step__success-text">{successBodyText}</p>
+              </div>
+
+              {selectedFile ? (
+                <div className="flow-upload-step__success-file">
+                  <span className="flow-upload-step__success-file-label">Файл</span>
+                  <strong className="flow-upload-step__success-file-name">{selectedFile.name}</strong>
+                </div>
+              ) : null}
+            </section>
+          ) : (
+            <FlowUploadField
+              label={uploadLabel}
+              description={uploadDescription}
+              file={selectedFile}
+              status={uploadStatus}
+              errorMessage={uploadError}
+              onSelectFile={handleSelectFile}
+            />
+          )}
         </section>
       </div>
     );

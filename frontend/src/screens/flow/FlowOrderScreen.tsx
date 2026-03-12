@@ -23,6 +23,8 @@ export function FlowOrderScreen({ articleId, onBack, onContinue }: FlowOrderScre
       errorText="Попробуйте обновить шаг или вернитесь к условиям по товару."
       errorBackLabel="Назад"
       notFoundBackLabel="Вернуться к условиям"
+      successTitle="Скрин заказа загружен"
+      successBodyText="Подтверждение покупки сохранено. Теперь можно перейти к шагу с отзывом."
       onBack={onBack}
       onContinue={onContinue}
       successActionLabel="Продолжить"

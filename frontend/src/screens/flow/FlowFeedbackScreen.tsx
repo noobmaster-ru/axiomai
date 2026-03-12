@@ -27,6 +27,8 @@ export function FlowFeedbackScreen({
       errorText="Попробуйте обновить шаг или вернитесь к загрузке скрина заказа."
       errorBackLabel="Назад"
       notFoundBackLabel="Вернуться к покупке"
+      successTitle="Скрин отзыва загружен"
+      successBodyText="Отзыв сохранён для этого шага. Если всё верно, можно переходить дальше."
       onBack={onBack}
       onContinue={onContinue}
       successActionLabel="Продолжить"
