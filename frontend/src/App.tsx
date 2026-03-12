@@ -10,11 +10,13 @@ import {
   navigateToArticle,
   navigateToCatalog,
   navigateToFlow,
+  navigateToFlowOrder,
   subscribeToAppRoute,
   type AppRoute,
 } from "./shared/navigation/appRoute";
 import { ProductDetailsScreen } from "./screens/article/ProductDetailsScreen";
 import { FlowConditionsScreen } from "./screens/flow/FlowConditionsScreen";
+import { FlowOrderScreen } from "./screens/flow/FlowOrderScreen";
 
 export default function App() {
   const [route, setRoute] = useState<AppRoute>(() => getCurrentAppRoute());
@@ -107,11 +109,23 @@ export default function App() {
   }
 
   if (route.name === "flow") {
+    if (route.step === "order") {
+      return (
+        <AppShell>
+          <FlowOrderScreen
+            articleId={route.articleId}
+            onBack={() => navigateToFlow(route.articleId)}
+          />
+        </AppShell>
+      );
+    }
+
     return (
       <AppShell>
         <FlowConditionsScreen
           articleId={route.articleId}
           onBack={() => navigateToArticle(route.articleId)}
+          onStart={navigateToFlowOrder}
         />
       </AppShell>
     );

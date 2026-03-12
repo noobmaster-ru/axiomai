@@ -1,0 +1,103 @@
+.flow-order {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.flow-order__summary-card,
+.flow-order__state-card,
+.flow-order__placeholder {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-4);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-card-soft);
+}
+
+.flow-order__summary-card,
+.flow-order__state-card {
+  padding: var(--space-4);
+}
+
+.flow-order__summary-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.flow-order__summary-copy,
+.flow-order__section,
+.flow-order__section-header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.flow-order__summary-title,
+.flow-order__section-title,
+.flow-order__state-title {
+  margin: 0;
+  line-height: var(--line-height-snug);
+}
+
+.flow-order__summary-meta,
+.flow-order__section-caption,
+.flow-order__state-text {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.flow-order__summary-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-brand);
+  color: var(--color-brand-contrast);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.flow-order__state-card {
+  display: grid;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.flow-order--loading {
+  gap: var(--space-3);
+}
+
+.flow-order__placeholder {
+  min-height: 7rem;
+  background:
+    linear-gradient(
+      90deg,
+      rgb(30 41 59 / 0.04) 0%,
+      rgb(30 41 59 / 0.08) 50%,
+      rgb(30 41 59 / 0.04) 100%
+    );
+  background-size: 200% 100%;
+  animation: flow-order-shimmer 1.3s linear infinite;
+}
+
+.flow-order__placeholder--upload {
+  min-height: 16rem;
+}
+
+@keyframes flow-order-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 22rem) {
+  .flow-order__summary-head {
+    flex-direction: column;
+  }
+}
