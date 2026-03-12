@@ -32,6 +32,23 @@ services:
       - ./sunny-might-477012-c4-04c66c69a92f.json:/app/sunny-might-477012-c4-04c66c69a92f.json:ro
     restart: unless-stopped
     command: "python -m axiomai.observer"
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: axiomai.api.dev
+    env_file:
+      - ".env"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./axiomai:/app/axiomai
+      - ./assets:/app/assets
+    restart: unless-stopped
+    command: "python -m axiomai.api"
   postgres_migration:
     build:
       context: .

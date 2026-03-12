@@ -4,7 +4,6 @@ from aiogram import Bot, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 from aiogram_dialog import ShowMode, StartMode
-from aiogram_dialog.api.exceptions import NoContextError
 from aiogram_dialog.api.protocols import BgManagerFactory
 from dishka import FromDishka
 from dishka.integrations.aiogram import inject
@@ -92,10 +91,8 @@ async def on_seller_confirm_screenshot(
         chat_id=lead_id,
         business_connection_id=message.business_connection_id,
     )
-    try:
-        await bg_manager.switch_to(next_state, show_mode=ShowMode.SEND)
-    except NoContextError:
-        await bg_manager.start(next_state, show_mode=ShowMode.SEND, mode=StartMode.RESET_STACK)
+
+    await bg_manager.start(next_state, show_mode=ShowMode.SEND, mode=StartMode.RESET_STACK)
 
     logger.info(
         "seller confirmed step (amount=%s) for nm_id %s, lead %s -> %s", amount, target.nm_id, lead_id, next_state,
@@ -158,10 +155,7 @@ async def on_seller_cancel_buyer(
     )
     resume_state = determine_resume_state(remaining) if remaining else None
     if resume_state:
-        try:
-            await bg_manager.switch_to(resume_state, show_mode=ShowMode.SEND)
-        except NoContextError:
-            await bg_manager.start(resume_state, show_mode=ShowMode.SEND, mode=StartMode.RESET_STACK)
+        await bg_manager.start(resume_state, show_mode=ShowMode.SEND, mode=StartMode.RESET_STACK)
     else:
         await bg_manager.done()
 
