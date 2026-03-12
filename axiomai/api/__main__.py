@@ -1,9 +1,11 @@
 import asyncio
+import os
 
 import uvicorn
 from dishka import make_async_container
 from dishka.integrations.fastapi import setup_dishka
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from axiomai.api.routes.articles import router as articles_router
 from axiomai.api.routes.banks import router as banks_router
@@ -13,6 +15,17 @@ from axiomai.infrastructure.di import ApiInteractorsProvider, ConfigProvider, Da
 from axiomai.infrastructure.logging import setup_logging
 
 
+def get_cors_allowed_origins() -> list[str]:
+    raw_value = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    if raw_value.strip():
+        return [origin.strip() for origin in raw_value.split(",") if origin.strip()]
+
+    return [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
+
 def create_app(config: Config | None = None) -> FastAPI:
     if config is None:
         config = load_config()
@@ -20,6 +33,13 @@ def create_app(config: Config | None = None) -> FastAPI:
     setup_logging(json_logs=config.json_logs)
 
     app = FastAPI(title="AxiomAI API", version="0.1.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=get_cors_allowed_origins(),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     di_container = make_async_container(
         DatabaseProvider(),
