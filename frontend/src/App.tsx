@@ -5,6 +5,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { BottomNav } from "./components/navigation/BottomNav";
 import type { Article } from "./entities/article/model";
 import { articleRepository } from "./shared/api";
+import { toReadOnlyDataError, type ReadOnlyDataErrorKind } from "./shared/api/errors";
 import {
   getCurrentAppRoute,
   navigateToArticle,
@@ -26,11 +27,50 @@ import { FlowDetailsScreen } from "./screens/flow/FlowDetailsScreen";
 import { FlowFeedbackScreen } from "./screens/flow/FlowFeedbackScreen";
 import { FlowOrderScreen } from "./screens/flow/FlowOrderScreen";
 
+type CatalogErrorState = {
+  description: string;
+  kind: ReadOnlyDataErrorKind;
+  title: string;
+};
+
+function getCatalogErrorState(kind: ReadOnlyDataErrorKind): CatalogErrorState {
+  if (kind === "network") {
+    return {
+      description: "Проверьте соединение и попробуйте открыть каталог ещё раз.",
+      kind,
+      title: "Нет связи с сервисом",
+    };
+  }
+
+  if (kind === "unavailable") {
+    return {
+      description: "Каталог временно недоступен. Обычно это проходит через пару минут.",
+      kind,
+      title: "Каталог пока не отвечает",
+    };
+  }
+
+  if (kind === "invalid_response") {
+    return {
+      description: "Сервис вернул неполные данные. Лучше попробовать ещё раз чуть позже.",
+      kind,
+      title: "Не удалось показать товары",
+    };
+  }
+
+  return {
+    description: "Попробуйте обновить экран позже. Если проблема повторится, вернитесь чуть позже.",
+    kind,
+    title: "Не удалось загрузить каталог",
+  };
+}
+
 export default function App() {
   const [route, setRoute] = useState<AppRoute>(() => getCurrentAppRoute());
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
-  const [articlesError, setArticlesError] = useState("");
+  const [articlesError, setArticlesError] = useState<CatalogErrorState | null>(null);
+  const [catalogRetryKey, setCatalogRetryKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const deferredQuery = useDeferredValue(searchQuery);
   const normalizedQuery = deferredQuery.trim().toLowerCase();
@@ -48,7 +88,7 @@ export default function App() {
 
     async function loadArticles() {
       setIsLoadingArticles(true);
-      setArticlesError("");
+      setArticlesError(null);
 
       try {
         const nextArticles = await articleRepository.getCatalogArticles();
@@ -58,12 +98,12 @@ export default function App() {
         }
 
         setArticles(nextArticles);
-      } catch {
+      } catch (error) {
         if (!isMounted) {
           return;
         }
 
-        setArticlesError("Не удалось загрузить каталог. Попробуйте обновить экран позже.");
+        setArticlesError(getCatalogErrorState(toReadOnlyDataError(error).kind));
       } finally {
         if (isMounted) {
           setIsLoadingArticles(false);
@@ -76,7 +116,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [route.name]);
+  }, [catalogRetryKey, route.name]);
 
   const filteredArticles = articles.filter((article) => {
     if (!normalizedQuery) {
@@ -229,12 +269,22 @@ export default function App() {
           <div className="catalog-section__header">
             <h2 className="catalog-section__title">Доступные товары</h2>
             <span className="catalog-section__meta">
-              {isLoadingArticles ? "..." : filteredArticles.length}
+              {isLoadingArticles ? "..." : articlesError ? "—" : filteredArticles.length}
             </span>
           </div>
 
           {articlesError ? (
-            <div className="catalog-empty">{articlesError}</div>
+            <div className="catalog-empty catalog-empty--state">
+              <h3 className="catalog-empty__title">{articlesError.title}</h3>
+              <p className="catalog-empty__text">{articlesError.description}</p>
+              <button
+                className="catalog-empty__button"
+                type="button"
+                onClick={() => setCatalogRetryKey((currentValue) => currentValue + 1)}
+              >
+                Попробовать ещё раз
+              </button>
+            </div>
           ) : isLoadingArticles ? (
             <div className="catalog-empty">Загружаем товары...</div>
           ) : filteredArticles.length ? (
@@ -246,6 +296,10 @@ export default function App() {
                   onSelect={navigateToArticle}
                 />
               ))}
+            </div>
+          ) : articles.length === 0 ? (
+            <div className="catalog-empty">
+              Сейчас в каталоге нет доступных товаров. Проверьте список немного позже.
             </div>
           ) : (
             <div className="catalog-empty">По вашему запросу пока ничего не найдено.</div>

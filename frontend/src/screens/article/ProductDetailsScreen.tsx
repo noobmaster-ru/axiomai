@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Article } from "../../entities/article/model";
 import { articleRepository } from "../../shared/api";
+import { toReadOnlyDataError, type ReadOnlyDataErrorKind } from "../../shared/api/errors";
 import "./ProductDetailsScreen.css";
 
 type ProductDetailsScreenProps = {
@@ -9,7 +10,40 @@ type ProductDetailsScreenProps = {
   onStartFlow?: (articleId: number) => void;
 };
 
+type ErrorState = {
+  description: string;
+  title: string;
+};
+
 type ScreenStatus = "loading" | "ready" | "error" | "not-found";
+
+function getProductErrorState(kind: ReadOnlyDataErrorKind): ErrorState {
+  if (kind === "network") {
+    return {
+      description: "Проверьте соединение и попробуйте открыть карточку ещё раз.",
+      title: "Нет связи с сервисом",
+    };
+  }
+
+  if (kind === "unavailable") {
+    return {
+      description: "Карточка товара временно недоступна. Обычно сервис восстанавливается быстро.",
+      title: "Сервис пока не отвечает",
+    };
+  }
+
+  if (kind === "invalid_response") {
+    return {
+      description: "Сервис вернул неполные данные по товару. Лучше открыть карточку немного позже.",
+      title: "Не удалось показать товар",
+    };
+  }
+
+  return {
+    description: "Попробуйте открыть карточку ещё раз чуть позже.",
+    title: "Не удалось загрузить товар",
+  };
+}
 
 export function ProductDetailsScreen({
   articleId,
@@ -17,6 +51,7 @@ export function ProductDetailsScreen({
   onStartFlow,
 }: ProductDetailsScreenProps) {
   const [article, setArticle] = useState<Article | null>(null);
+  const [errorState, setErrorState] = useState<ErrorState | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [status, setStatus] = useState<ScreenStatus>("loading");
 
@@ -26,6 +61,7 @@ export function ProductDetailsScreen({
     async function loadArticle() {
       setStatus("loading");
       setArticle(null);
+      setErrorState(null);
 
       try {
         const nextArticle = await articleRepository.getArticleById(articleId);
@@ -41,11 +77,12 @@ export function ProductDetailsScreen({
 
         setArticle(nextArticle);
         setStatus("ready");
-      } catch {
+      } catch (error) {
         if (!isMounted) {
           return;
         }
 
+        setErrorState(getProductErrorState(toReadOnlyDataError(error).kind));
         setStatus("error");
       }
     }
@@ -71,10 +108,8 @@ export function ProductDetailsScreen({
     return (
       <div className="product-details product-details--state">
         <section className="product-details__state-card">
-          <h2 className="product-details__state-title">Не удалось загрузить товар</h2>
-          <p className="product-details__state-text">
-            Проверьте соединение и попробуйте открыть карточку ещё раз.
-          </p>
+          <h2 className="product-details__state-title">{errorState?.title}</h2>
+          <p className="product-details__state-text">{errorState?.description}</p>
           <div className="product-details__state-actions">
             <button className="product-details__secondary-button" type="button" onClick={onBack}>
               Назад в каталог
