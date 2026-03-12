@@ -5,8 +5,17 @@ import { AppShell } from "./components/layout/AppShell";
 import { BottomNav } from "./components/navigation/BottomNav";
 import type { Article } from "./entities/article/model";
 import { articleRepository } from "./shared/api";
+import {
+  getCurrentAppRoute,
+  navigateToArticle,
+  navigateToCatalog,
+  subscribeToAppRoute,
+  type AppRoute,
+} from "./shared/navigation/appRoute";
+import { ProductDetailsScreen } from "./screens/article/ProductDetailsScreen";
 
 export default function App() {
+  const [route, setRoute] = useState<AppRoute>(() => getCurrentAppRoute());
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
   const [articlesError, setArticlesError] = useState("");
@@ -15,6 +24,14 @@ export default function App() {
   const normalizedQuery = deferredQuery.trim().toLowerCase();
 
   useEffect(() => {
+    return subscribeToAppRoute(setRoute);
+  }, []);
+
+  useEffect(() => {
+    if (route.name !== "catalog") {
+      return;
+    }
+
     let isMounted = true;
 
     async function loadArticles() {
@@ -47,7 +64,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [route.name]);
 
   const filteredArticles = articles.filter((article) => {
     if (!normalizedQuery) {
@@ -60,6 +77,28 @@ export default function App() {
       String(article.nmId).includes(normalizedQuery)
     );
   });
+
+  if (route.name === "article") {
+    return (
+      <AppShell
+        topSlot={
+          <div className="app-header app-header--compact">
+            <button className="app-header__back" type="button" onClick={navigateToCatalog}>
+              Назад
+            </button>
+
+            <div className="app-header__meta">
+              <p className="app-header__eyebrow">AxiomAI Cashback</p>
+              <h1 className="app-header__title app-header__title--compact">Карточка товара</h1>
+            </div>
+          </div>
+        }
+        bottomSlot={<BottomNav activeKey="requests" />}
+      >
+        <ProductDetailsScreen articleId={route.articleId} onBack={navigateToCatalog} />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell
@@ -76,9 +115,7 @@ export default function App() {
           </button>
         </div>
       }
-      bottomSlot={
-        <BottomNav activeKey="requests" />
-      }
+      bottomSlot={<BottomNav activeKey="requests" />}
     >
       <div className="home-screen">
         <section className="home-screen__intro">
@@ -114,7 +151,11 @@ export default function App() {
           ) : filteredArticles.length ? (
             <div className="catalog-list">
               {filteredArticles.map((article) => (
-                <ProductCard key={article.id} article={article} />
+                <ProductCard
+                  key={article.id}
+                  article={article}
+                  onSelect={navigateToArticle}
+                />
               ))}
             </div>
           ) : (

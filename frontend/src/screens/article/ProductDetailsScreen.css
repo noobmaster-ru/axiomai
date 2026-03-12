@@ -1,0 +1,201 @@
+.product-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.product-details__hero,
+.product-details__conditions-card,
+.product-details__cta-panel,
+.product-details__state-card,
+.product-details__card--placeholder {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-4);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-card-soft);
+}
+
+.product-details__hero {
+  overflow: hidden;
+}
+
+.product-details__media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--color-surface-muted);
+}
+
+.product-details__media--placeholder {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-4);
+  background:
+    linear-gradient(
+      90deg,
+      rgb(30 41 59 / 0.04) 0%,
+      rgb(30 41 59 / 0.08) 50%,
+      rgb(30 41 59 / 0.04) 100%
+    );
+  background-size: 200% 100%;
+  animation: product-details-shimmer 1.3s linear infinite;
+}
+
+.product-details__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-details__summary {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.product-details__summary-head,
+.product-details__meta-list,
+.product-details__state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.product-details__cashback-badge,
+.product-details__stock-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.product-details__cashback-badge {
+  background: var(--color-surface-brand);
+  color: var(--color-brand-contrast);
+}
+
+.product-details__stock-badge {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.product-details__title,
+.product-details__section-title,
+.product-details__cta-title,
+.product-details__state-title {
+  margin: 0;
+  line-height: var(--line-height-snug);
+}
+
+.product-details__title {
+  font-size: var(--font-size-title-sm);
+}
+
+.product-details__meta-item,
+.product-details__section-caption,
+.product-details__conditions-text,
+.product-details__cta-text,
+.product-details__state-text {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.product-details__meta-item {
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-2);
+  background: var(--color-surface-muted);
+  font-size: var(--font-size-body-sm);
+}
+
+.product-details__conditions,
+.product-details__cta-copy {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.product-details__conditions-card,
+.product-details__cta-panel,
+.product-details__state-card {
+  padding: var(--space-4);
+}
+
+.product-details__conditions-text {
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-primary);
+}
+
+.product-details__cta-panel {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.product-details__cta-title {
+  font-size: var(--font-size-body-lg);
+}
+
+.product-details__primary-button,
+.product-details__secondary-button {
+  min-height: 3.25rem;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-3);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+}
+
+.product-details__primary-button {
+  background: var(--gradient-brand-hero);
+  color: var(--color-text-on-brand);
+  box-shadow: var(--shadow-card-soft);
+}
+
+.product-details__secondary-button {
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+}
+
+.product-details--loading {
+  gap: var(--space-3);
+}
+
+.product-details__card--placeholder {
+  min-height: 7.5rem;
+  background:
+    linear-gradient(
+      90deg,
+      rgb(30 41 59 / 0.04) 0%,
+      rgb(30 41 59 / 0.08) 50%,
+      rgb(30 41 59 / 0.04) 100%
+    );
+  background-size: 200% 100%;
+  animation: product-details-shimmer 1.3s linear infinite;
+}
+
+.product-details__card--short {
+  min-height: 5.5rem;
+}
+
+.product-details--state {
+  min-height: 100%;
+  justify-content: center;
+}
+
+.product-details__state-card {
+  display: grid;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+@keyframes product-details-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}

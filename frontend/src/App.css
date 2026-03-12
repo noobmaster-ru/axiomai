@@ -44,6 +44,25 @@
   box-shadow: var(--shadow-card-soft);
 }
 
+.app-header--compact {
+  align-items: center;
+}
+
+.app-header__back {
+  min-height: 2.5rem;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.app-header__title--compact {
+  font-size: var(--font-size-body-lg);
+}
+
 .home-screen {
   display: flex;
   flex-direction: column;
