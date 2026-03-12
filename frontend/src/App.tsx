@@ -10,12 +10,14 @@ import {
   navigateToArticle,
   navigateToCatalog,
   navigateToFlow,
+  navigateToFlowFeedback,
   navigateToFlowOrder,
   subscribeToAppRoute,
   type AppRoute,
 } from "./shared/navigation/appRoute";
 import { ProductDetailsScreen } from "./screens/article/ProductDetailsScreen";
 import { FlowConditionsScreen } from "./screens/flow/FlowConditionsScreen";
+import { FlowFeedbackScreen } from "./screens/flow/FlowFeedbackScreen";
 import { FlowOrderScreen } from "./screens/flow/FlowOrderScreen";
 
 export default function App() {
@@ -109,12 +111,24 @@ export default function App() {
   }
 
   if (route.name === "flow") {
+    if (route.step === "feedback") {
+      return (
+        <AppShell>
+          <FlowFeedbackScreen
+            articleId={route.articleId}
+            onBack={() => navigateToFlowOrder(route.articleId)}
+          />
+        </AppShell>
+      );
+    }
+
     if (route.step === "order") {
       return (
         <AppShell>
           <FlowOrderScreen
             articleId={route.articleId}
             onBack={() => navigateToFlow(route.articleId)}
+            onContinue={navigateToFlowFeedback}
           />
         </AppShell>
       );
