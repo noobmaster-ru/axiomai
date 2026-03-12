@@ -1,4 +1,4 @@
-export type FlowRouteStep = "conditions" | "order" | "feedback";
+export type FlowRouteStep = "conditions" | "order" | "feedback" | "barcode";
 
 export type AppRoute =
   | {
@@ -25,6 +25,7 @@ function parseAppRoute(hash: string): AppRoute {
   const flowMatch = normalizedHash.match(/^\/flow\/(\d+)$/);
   const flowOrderMatch = normalizedHash.match(/^\/flow\/(\d+)\/order$/);
   const flowFeedbackMatch = normalizedHash.match(/^\/flow\/(\d+)\/feedback$/);
+  const flowBarcodeMatch = normalizedHash.match(/^\/flow\/(\d+)\/barcode$/);
 
   if (articleMatch) {
     return {
@@ -46,6 +47,14 @@ function parseAppRoute(hash: string): AppRoute {
       name: "flow",
       articleId: Number(flowFeedbackMatch[1]),
       step: "feedback",
+    };
+  }
+
+  if (flowBarcodeMatch) {
+    return {
+      name: "flow",
+      articleId: Number(flowBarcodeMatch[1]),
+      step: "barcode",
     };
   }
 
@@ -82,6 +91,10 @@ export function navigateToFlowOrder(articleId: number) {
 
 export function navigateToFlowFeedback(articleId: number) {
   window.location.hash = `/flow/${articleId}/feedback`;
+}
+
+export function navigateToFlowBarcode(articleId: number) {
+  window.location.hash = `/flow/${articleId}/barcode`;
 }
 
 export function subscribeToAppRoute(listener: (route: AppRoute) => void) {

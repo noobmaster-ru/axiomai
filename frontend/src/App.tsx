@@ -10,12 +10,14 @@ import {
   navigateToArticle,
   navigateToCatalog,
   navigateToFlow,
+  navigateToFlowBarcode,
   navigateToFlowFeedback,
   navigateToFlowOrder,
   subscribeToAppRoute,
   type AppRoute,
 } from "./shared/navigation/appRoute";
 import { ProductDetailsScreen } from "./screens/article/ProductDetailsScreen";
+import { FlowBarcodeScreen } from "./screens/flow/FlowBarcodeScreen";
 import { FlowConditionsScreen } from "./screens/flow/FlowConditionsScreen";
 import { FlowFeedbackScreen } from "./screens/flow/FlowFeedbackScreen";
 import { FlowOrderScreen } from "./screens/flow/FlowOrderScreen";
@@ -111,12 +113,24 @@ export default function App() {
   }
 
   if (route.name === "flow") {
+    if (route.step === "barcode") {
+      return (
+        <AppShell>
+          <FlowBarcodeScreen
+            articleId={route.articleId}
+            onBack={() => navigateToFlowFeedback(route.articleId)}
+          />
+        </AppShell>
+      );
+    }
+
     if (route.step === "feedback") {
       return (
         <AppShell>
           <FlowFeedbackScreen
             articleId={route.articleId}
             onBack={() => navigateToFlowOrder(route.articleId)}
+            onContinue={navigateToFlowBarcode}
           />
         </AppShell>
       );
