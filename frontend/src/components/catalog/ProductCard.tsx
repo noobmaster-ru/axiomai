@@ -7,21 +7,20 @@ type ProductCardProps = {
 };
 
 export function ProductCard({ article, onSelect }: ProductCardProps) {
-  const availabilityLabel = article.inStock ? "В наличии" : "Нет в наличии";
-
   return (
     <button className="product-card" type="button" onClick={() => onSelect?.(article.id)}>
-      <img
-        className="product-card__image"
-        src={article.imageUrl}
-        alt={article.title}
-        loading="lazy"
-      />
+      <div className="product-card__media">
+        <img
+          className="product-card__image"
+          src={article.imageUrl}
+          alt={article.title}
+          loading="lazy"
+        />
+      </div>
 
       <div className="product-card__content">
         <div className="product-card__head">
           <h3 className="product-card__title">{article.title}</h3>
-          <span className="product-card__tag">{availabilityLabel}</span>
         </div>
 
         <p className="product-card__meta">
