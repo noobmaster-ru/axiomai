@@ -21,8 +21,6 @@ export function FlowBarcodeScreen({
       sectionCaption="На фото должен быть хорошо виден разрезанный штрихкод от товара."
       uploadLabel="Добавить фото штрихкода"
       uploadDescription="Подойдёт снимок с камеры телефона или изображение из галереи."
-      uploadSubmitLabel="Загрузить фото"
-      idleActionLabel="Выберите фото штрихкода"
       errorTitle="Не удалось открыть шаг штрихкода"
       errorText="Попробуйте обновить шаг или вернитесь к загрузке скрина отзыва."
       errorBackLabel="Назад"

@@ -17,8 +17,6 @@ export function FlowOrderScreen({ articleId, onBack, onContinue }: FlowOrderScre
       sectionCaption="Нужен читаемый скрин с подтверждением покупки по выбранному товару."
       uploadLabel="Добавить скрин заказа"
       uploadDescription="Подойдёт изображение из галереи или новый снимок из телефона."
-      uploadSubmitLabel="Загрузить скрин"
-      idleActionLabel="Выберите скрин заказа"
       errorTitle="Не удалось открыть шаг покупки"
       errorText="Попробуйте обновить шаг или вернитесь к условиям по товару."
       errorBackLabel="Назад"

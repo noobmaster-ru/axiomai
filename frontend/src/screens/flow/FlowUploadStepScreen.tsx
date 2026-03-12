@@ -16,7 +16,6 @@ type FlowUploadStepScreenProps = {
   errorBackLabel: string;
   errorText: string;
   errorTitle: string;
-  idleActionLabel: string;
   notFoundBackLabel: string;
   onBack: () => void;
   onContinue?: (articleId: number) => void;
@@ -29,7 +28,6 @@ type FlowUploadStepScreenProps = {
   title: string;
   uploadDescription: string;
   uploadLabel: string;
-  uploadSubmitLabel: string;
 };
 
 type ScreenStatus = "loading" | "ready" | "error" | "not-found";
@@ -55,7 +53,6 @@ export function FlowUploadStepScreen({
   errorBackLabel,
   errorText,
   errorTitle,
-  idleActionLabel,
   notFoundBackLabel,
   onBack,
   onContinue,
@@ -68,7 +65,6 @@ export function FlowUploadStepScreen({
   title,
   uploadDescription,
   uploadLabel,
-  uploadSubmitLabel,
 }: FlowUploadStepScreenProps) {
   const [article, setArticle] = useState<Article | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -154,28 +150,11 @@ export function FlowUploadStepScreen({
       return;
     }
 
-    setUploadStatus("selected");
-    setUploadError("");
-  }
-
-  function handleUpload() {
-    if (!selectedFile) {
-      return;
-    }
-
-    const validationError = validateUploadFile(selectedFile);
-
-    if (validationError) {
-      setUploadStatus("error");
-      setUploadError(validationError);
-      return;
-    }
-
     setUploadStatus("uploading");
     setUploadError("");
 
     uploadTimerRef.current = window.setTimeout(() => {
-      if (selectedFile.name.toLowerCase().includes("fail")) {
+      if (file.name.toLowerCase().includes("fail")) {
         setUploadStatus("error");
         setUploadError("Не удалось обработать скрин. Попробуйте ещё раз или выберите другой файл.");
         return;
@@ -306,23 +285,7 @@ export function FlowUploadStepScreen({
     }
 
     if (uploadStatus === "idle") {
-      return (
-        <div className="flow-action-group">
-          <button className="flow-action-button" type="button" disabled>
-            {idleActionLabel}
-          </button>
-        </div>
-      );
-    }
-
-    if (uploadStatus === "selected") {
-      return (
-        <div className="flow-action-group">
-          <button className="flow-action-button" type="button" onClick={handleUpload}>
-            {uploadSubmitLabel}
-          </button>
-        </div>
-      );
+      return null;
     }
 
     if (uploadStatus === "uploading") {
@@ -360,13 +323,13 @@ export function FlowUploadStepScreen({
         <button
           className="flow-action-button"
           type="button"
-          onClick={canRetryUpload ? handleUpload : undefined}
+          onClick={canRetryUpload ? () => handleSelectFile(selectedFile) : undefined}
           disabled={!canRetryUpload}
         >
           {canRetryUpload ? "Повторить загрузку" : "Выберите корректный файл"}
         </button>
         <button className="flow-action-button--secondary" type="button" onClick={resetUploadState}>
-          Сбросить выбор
+          Выбрать другой файл
         </button>
       </div>
     );

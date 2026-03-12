@@ -21,8 +21,6 @@ export function FlowFeedbackScreen({
       sectionCaption="На изображении должны быть видны сам отзыв и привязка к нужному товару."
       uploadLabel="Добавить скрин отзыва"
       uploadDescription="Подойдёт скрин из приложения маркетплейса или снимок экрана с телефона."
-      uploadSubmitLabel="Загрузить отзыв"
-      idleActionLabel="Выберите скрин отзыва"
       errorTitle="Не удалось открыть шаг отзыва"
       errorText="Попробуйте обновить шаг или вернитесь к загрузке скрина заказа."
       errorBackLabel="Назад"

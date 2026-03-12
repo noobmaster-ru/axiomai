@@ -5,7 +5,7 @@ import "./FlowLayout.css";
 
 type FlowLayoutProps = {
   activeStep: FlowStepKey;
-  actionSlot: ReactNode;
+  actionSlot?: ReactNode;
   children: ReactNode;
   description?: string;
   onBack: () => void;
@@ -38,7 +38,7 @@ export function FlowLayout({
 
       <div className="flow-layout__body">{children}</div>
 
-      <div className="flow-layout__footer">{actionSlot}</div>
+      {actionSlot ? <div className="flow-layout__footer">{actionSlot}</div> : null}
     </div>
   );
 }
