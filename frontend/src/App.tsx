@@ -9,10 +9,12 @@ import {
   getCurrentAppRoute,
   navigateToArticle,
   navigateToCatalog,
+  navigateToFlow,
   subscribeToAppRoute,
   type AppRoute,
 } from "./shared/navigation/appRoute";
 import { ProductDetailsScreen } from "./screens/article/ProductDetailsScreen";
+import { FlowConditionsScreen } from "./screens/flow/FlowConditionsScreen";
 
 export default function App() {
   const [route, setRoute] = useState<AppRoute>(() => getCurrentAppRoute());
@@ -95,7 +97,22 @@ export default function App() {
         }
         bottomSlot={<BottomNav activeKey="requests" />}
       >
-        <ProductDetailsScreen articleId={route.articleId} onBack={navigateToCatalog} />
+        <ProductDetailsScreen
+          articleId={route.articleId}
+          onBack={navigateToCatalog}
+          onStartFlow={navigateToFlow}
+        />
+      </AppShell>
+    );
+  }
+
+  if (route.name === "flow") {
+    return (
+      <AppShell>
+        <FlowConditionsScreen
+          articleId={route.articleId}
+          onBack={() => navigateToArticle(route.articleId)}
+        />
       </AppShell>
     );
   }

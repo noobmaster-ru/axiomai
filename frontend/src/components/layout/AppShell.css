@@ -12,8 +12,8 @@
   width: min(100%, var(--layout-shell-max-width));
   min-height: calc(100svh - var(--safe-top) - var(--safe-bottom));
   margin: 0 auto;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
 }
 
@@ -26,8 +26,10 @@
 
 .app-shell__main {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--space-4);
+  min-height: 0;
 }
 
 .app-shell__bottom {

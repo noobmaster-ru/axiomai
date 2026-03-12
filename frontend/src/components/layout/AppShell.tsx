@@ -11,9 +11,9 @@ export function AppShell({ topSlot, bottomSlot, children }: AppShellProps) {
   return (
     <div className="app-shell">
       <div className="app-shell__frame">
-        <header className="app-shell__top">{topSlot}</header>
+        {topSlot ? <header className="app-shell__top">{topSlot}</header> : null}
         <main className="app-shell__main">{children}</main>
-        <footer className="app-shell__bottom">{bottomSlot}</footer>
+        {bottomSlot ? <footer className="app-shell__bottom">{bottomSlot}</footer> : null}
       </div>
     </div>
   );

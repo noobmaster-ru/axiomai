@@ -5,6 +5,10 @@ export type AppRoute =
   | {
       articleId: number;
       name: "article";
+    }
+  | {
+      articleId: number;
+      name: "flow";
     };
 
 function parseAppRoute(hash: string): AppRoute {
@@ -15,11 +19,19 @@ function parseAppRoute(hash: string): AppRoute {
   }
 
   const articleMatch = normalizedHash.match(/^\/articles\/(\d+)$/);
+  const flowMatch = normalizedHash.match(/^\/flow\/(\d+)$/);
 
   if (articleMatch) {
     return {
       name: "article",
       articleId: Number(articleMatch[1]),
+    };
+  }
+
+  if (flowMatch) {
+    return {
+      name: "flow",
+      articleId: Number(flowMatch[1]),
     };
   }
 
@@ -36,6 +48,10 @@ export function navigateToCatalog() {
 
 export function navigateToArticle(articleId: number) {
   window.location.hash = `/articles/${articleId}`;
+}
+
+export function navigateToFlow(articleId: number) {
+  window.location.hash = `/flow/${articleId}`;
 }
 
 export function subscribeToAppRoute(listener: (route: AppRoute) => void) {
