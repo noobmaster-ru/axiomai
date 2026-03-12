@@ -1,8 +1,15 @@
 import { createArticleRepository } from "./adapters/articleRepository";
+import { getArticlesApiConfig } from "./config";
+import { createHttpArticlesDataSource } from "./http/httpArticlesDataSource";
 import { mockArticlesDataSource } from "./mocks/mockArticlesDataSource";
 
-const MOCK_TELEGRAM_ID = 0;
+const apiConfig = getArticlesApiConfig();
 
-export const articleRepository = createArticleRepository(mockArticlesDataSource, {
-  telegramId: MOCK_TELEGRAM_ID,
+const articlesDataSource =
+  apiConfig.dataSourceMode === "http"
+    ? createHttpArticlesDataSource({ baseUrl: apiConfig.apiBaseUrl })
+    : mockArticlesDataSource;
+
+export const articleRepository = createArticleRepository(articlesDataSource, {
+  telegramId: apiConfig.telegramId,
 });
