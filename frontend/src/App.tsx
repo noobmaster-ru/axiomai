@@ -11,6 +11,7 @@ import {
   navigateToCatalog,
   navigateToFlow,
   navigateToFlowBarcode,
+  navigateToFlowComplete,
   navigateToFlowDetails,
   navigateToFlowFeedback,
   navigateToFlowOrder,
@@ -20,6 +21,7 @@ import {
 import { ProductDetailsScreen } from "./screens/article/ProductDetailsScreen";
 import { FlowBarcodeScreen } from "./screens/flow/FlowBarcodeScreen";
 import { FlowConditionsScreen } from "./screens/flow/FlowConditionsScreen";
+import { FlowCompleteScreen } from "./screens/flow/FlowCompleteScreen";
 import { FlowDetailsScreen } from "./screens/flow/FlowDetailsScreen";
 import { FlowFeedbackScreen } from "./screens/flow/FlowFeedbackScreen";
 import { FlowOrderScreen } from "./screens/flow/FlowOrderScreen";
@@ -115,12 +117,26 @@ export default function App() {
   }
 
   if (route.name === "flow") {
+    if (route.step === "complete") {
+      return (
+        <AppShell>
+          <FlowCompleteScreen
+            articleId={route.articleId}
+            onBack={() => navigateToFlowDetails(route.articleId)}
+            onReturnHome={navigateToCatalog}
+            onOpenArticle={navigateToArticle}
+          />
+        </AppShell>
+      );
+    }
+
     if (route.step === "details") {
       return (
         <AppShell>
           <FlowDetailsScreen
             articleId={route.articleId}
             onBack={() => navigateToFlowBarcode(route.articleId)}
+            onContinue={navigateToFlowComplete}
           />
         </AppShell>
       );
