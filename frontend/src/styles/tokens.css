@@ -94,6 +94,8 @@
   --color-brand-primary: var(--color-brand-675);
   --color-brand-accent: var(--color-brand-2395);
   --color-brand-contrast: var(--color-brand-2617);
+  --color-action-primary: #ca3d90;
+  --color-action-primary-pressed: #b4327f;
   --color-success: #24a06b;
   --color-error: #d94b5f;
 }
@@ -115,6 +117,8 @@
   --color-brand-primary: #d67ab0;
   --color-brand-accent: #ff72c7;
   --color-brand-contrast: #bca7ff;
+  --color-action-primary: #de5fa9;
+  --color-action-primary-pressed: #c64f95;
   --color-success: #40c98d;
   --color-error: #ff7686;
 }

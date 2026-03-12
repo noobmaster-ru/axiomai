@@ -14,7 +14,6 @@ type ScreenStatus = "loading" | "ready" | "error" | "not-found";
 type SubmitStatus = "idle" | "submitting" | "success";
 
 type DetailsFormValues = {
-  amount: string;
   bank: string;
   phone: string;
 };
@@ -76,14 +75,6 @@ function validateDetailsForm(values: DetailsFormValues): DetailsFormErrors {
     errors.phone = "Введите номер в формате +7 999 123-45-67.";
   }
 
-  if (values.amount.trim()) {
-    const normalizedAmount = Number(values.amount.replace(",", "."));
-
-    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-      errors.amount = "Сумма должна быть больше нуля.";
-    }
-  }
-
   return errors;
 }
 
@@ -99,7 +90,6 @@ export function FlowDetailsScreen({
   const [formValues, setFormValues] = useState<DetailsFormValues>({
     bank: "",
     phone: "",
-    amount: "",
   });
   const [fieldErrors, setFieldErrors] = useState<DetailsFormErrors>({});
   const submitTimerRef = useRef<number | null>(null);
@@ -240,7 +230,7 @@ export function FlowDetailsScreen({
           <div className="flow-details__section-header">
             <h2 className="flow-details__section-title">Куда перевести выплату</h2>
             <p className="flow-details__section-caption">
-              Укажите реквизиты для перевода. Эти данные понадобятся после проверки заявки.
+              Укажите банк и номер телефона для перевода. Сумма выплаты подтянется автоматически после проверки заявки.
             </p>
           </div>
 
@@ -251,7 +241,7 @@ export function FlowDetailsScreen({
               <div className="flow-details__success-copy">
                 <h3 className="flow-details__success-title">Реквизиты сохранены</h3>
                 <p className="flow-details__success-text">
-                  Данные заполнены. Следующим шагом можно будет завершить заявку и показать итоговый статус.
+                  Данные заполнены. Следующим шагом можно будет завершить заявку и перейти к итоговому статусу.
                 </p>
               </div>
 
@@ -264,12 +254,6 @@ export function FlowDetailsScreen({
                   <span>Телефон</span>
                   <strong>{formValues.phone}</strong>
                 </p>
-                {formValues.amount.trim() ? (
-                  <p className="flow-details__success-item">
-                    <span>Сумма</span>
-                    <strong>{formValues.amount} ₽</strong>
-                  </p>
-                ) : null}
               </div>
             </section>
           ) : (
@@ -318,23 +302,6 @@ export function FlowDetailsScreen({
                   <span className="flow-details__field-error">{fieldErrors.phone}</span>
                 ) : (
                   <span className="flow-details__field-help">На этот номер будет оформлена выплата.</span>
-                )}
-              </label>
-
-              <label className="flow-details__field">
-                <span className="flow-details__field-label">Сумма выплаты</span>
-                <input
-                  className={`flow-details__input${fieldErrors.amount ? " flow-details__input--error" : ""}`}
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="Если нужна ручная корректировка"
-                  value={formValues.amount}
-                  onChange={(event) => handleFieldChange("amount", event.target.value)}
-                />
-                {fieldErrors.amount ? (
-                  <span className="flow-details__field-error">{fieldErrors.amount}</span>
-                ) : (
-                  <span className="flow-details__field-help">Поле необязательное. Оставьте пустым, если сумма уже определена.</span>
                 )}
               </label>
             </div>
@@ -428,7 +395,7 @@ export function FlowDetailsScreen({
     <FlowLayout
       activeStep="details"
       title="Реквизиты для выплаты"
-      description="Заполните данные для перевода. После этого можно будет перейти к финальному статусу заявки."
+      description="Укажите банк и телефон для выплаты. После этого можно будет завершить заявку."
       onBack={onBack}
       actionSlot={renderActionSlot()}
     >

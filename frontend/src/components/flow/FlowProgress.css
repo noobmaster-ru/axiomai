@@ -57,7 +57,7 @@
 
 .flow-progress__step--active .flow-progress__bullet {
   border-color: transparent;
-  background: var(--gradient-brand-hero);
+  background: var(--color-action-primary);
   color: var(--color-text-on-brand);
 }
 

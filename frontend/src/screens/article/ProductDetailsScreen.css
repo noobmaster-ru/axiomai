@@ -147,7 +147,7 @@
 }
 
 .product-details__primary-button {
-  background: var(--gradient-brand-hero);
+  background: var(--color-action-primary);
   color: var(--color-text-on-brand);
   box-shadow: var(--shadow-card-soft);
 }

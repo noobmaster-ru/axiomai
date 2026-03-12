@@ -143,8 +143,8 @@
 }
 
 .catalog-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
 }
 
@@ -179,8 +179,8 @@
   min-height: 2.875rem;
   padding: 0 var(--space-5);
   border-radius: var(--radius-full);
-  background: var(--color-surface-brand);
-  color: var(--color-brand-contrast);
+  background: var(--color-action-primary);
+  color: var(--color-text-on-brand);
   font-size: var(--font-size-body-sm);
   font-weight: var(--font-weight-semibold);
   box-shadow: var(--shadow-card-soft);
