@@ -119,7 +119,7 @@ export default function App() {
   if (route.name === "flow") {
     if (route.step === "complete") {
       return (
-        <AppShell>
+        <AppShell mode="flow">
           <FlowCompleteScreen
             articleId={route.articleId}
             onBack={() => navigateToFlowDetails(route.articleId)}
@@ -132,7 +132,7 @@ export default function App() {
 
     if (route.step === "details") {
       return (
-        <AppShell>
+        <AppShell mode="flow">
           <FlowDetailsScreen
             articleId={route.articleId}
             onBack={() => navigateToFlowBarcode(route.articleId)}
@@ -144,7 +144,7 @@ export default function App() {
 
     if (route.step === "barcode") {
       return (
-        <AppShell>
+        <AppShell mode="flow">
           <FlowBarcodeScreen
             articleId={route.articleId}
             onBack={() => navigateToFlowFeedback(route.articleId)}
@@ -156,7 +156,7 @@ export default function App() {
 
     if (route.step === "feedback") {
       return (
-        <AppShell>
+        <AppShell mode="flow">
           <FlowFeedbackScreen
             articleId={route.articleId}
             onBack={() => navigateToFlowOrder(route.articleId)}
@@ -168,7 +168,7 @@ export default function App() {
 
     if (route.step === "order") {
       return (
-        <AppShell>
+        <AppShell mode="flow">
           <FlowOrderScreen
             articleId={route.articleId}
             onBack={() => navigateToFlow(route.articleId)}
@@ -179,7 +179,7 @@ export default function App() {
     }
 
     return (
-      <AppShell>
+      <AppShell mode="flow">
         <FlowConditionsScreen
           articleId={route.articleId}
           onBack={() => navigateToArticle(route.articleId)}

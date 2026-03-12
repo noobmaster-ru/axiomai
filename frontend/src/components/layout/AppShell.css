@@ -17,6 +17,10 @@
   gap: var(--space-4);
 }
 
+.app-shell--flow .app-shell__frame {
+  gap: var(--space-3);
+}
+
 .app-shell__top {
   display: flex;
   align-items: center;
@@ -36,5 +40,9 @@
   position: sticky;
   bottom: 0;
   z-index: var(--z-index-sticky);
-  padding-top: var(--space-1);
+  padding-top: 0.125rem;
+}
+
+.app-shell--flow .app-shell__main {
+  gap: var(--space-3);
 }
