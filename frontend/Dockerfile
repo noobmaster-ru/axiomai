@@ -1,11 +1,15 @@
-FROM node:20-alpine AS frontend-builder
+FROM node:20-alpine AS builder
 
-WORKDIR /app/frontend
+WORKDIR /app
 
-COPY frontend/package*.json ./
+COPY package*.json ./
 RUN npm ci
 
-COPY frontend/ ./
+COPY index.html ./
+COPY tsconfig.json ./
+COPY tsconfig.app.json ./
+COPY vite.config.ts ./
+COPY src ./src
 
 ARG VITE_API_BASE_URL=/api
 ARG VITE_ARTICLES_DATA_SOURCE=http
@@ -19,7 +23,5 @@ RUN npm run build
 
 FROM caddy:2.10-alpine
 
-WORKDIR /srv
-
-COPY deploy/caddy/Caddyfile /etc/caddy/Caddyfile
-COPY --from=frontend-builder /app/frontend/dist /srv
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY --from=builder /app/dist /srv
