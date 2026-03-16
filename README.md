@@ -38,25 +38,22 @@ docker compose up --build
 docker compose run --rm postgres_migration
 ```
 
-Тестовые статьи:
-
-```bash
-cmd /c "docker compose exec -T postgres psql -U axiomai -d axiomai_db < scripts\dev_seed_articles.sql"
-```
-
 ## Production
 
 На сервере должен быть заполнен `.env`.
 
-Миграции:
-
-```bash
-docker compose -f docker-compose.prod.yaml run --rm postgres_migration
-```
-
 Запуск:
 
 ```bash
-docker compose -f docker-compose.prod.yaml pull
-docker compose -f docker-compose.prod.yaml up -d
+make up-prod
 ```
+
+### Запуск Grafana (мониторинг)
+
+Запуск стека мониторинга:
+
+```bash
+make grafana
+```
+
+Grafana доступна по адресу: http://localhost:3001
