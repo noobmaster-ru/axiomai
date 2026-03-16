@@ -6,6 +6,8 @@ sources:
       - axiomai.tgbot.prod
       - axiomai.observer.prod
       - axiomai.postgres.migration.prod
+      - axiomai.api.prod
+      - axiomai.frontend.prod
 
 transforms:
   parse_json:
