@@ -1,0 +1,111 @@
+.flow-conditions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.flow-conditions__article-card,
+.flow-conditions__content-card,
+.flow-conditions__state-card,
+.flow-conditions__placeholder {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-4);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-card-soft);
+}
+
+.flow-conditions__article-card,
+.flow-conditions__content-card,
+.flow-conditions__state-card {
+  padding: var(--space-4);
+}
+
+.flow-conditions__article-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.flow-conditions__article-copy,
+.flow-conditions__section,
+.flow-conditions__section-header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.flow-conditions__article-title,
+.flow-conditions__section-title,
+.flow-conditions__state-title {
+  margin: 0;
+  line-height: var(--line-height-snug);
+}
+
+.flow-conditions__article-meta,
+.flow-conditions__section-caption,
+.flow-conditions__state-text {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.flow-conditions__article-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-brand);
+  color: var(--color-brand-contrast);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.flow-conditions__content-text {
+  margin: 0;
+  color: var(--color-text-primary);
+  line-height: var(--line-height-relaxed);
+}
+
+.flow-conditions__state-card {
+  display: grid;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.flow-conditions--loading {
+  gap: var(--space-3);
+}
+
+.flow-conditions__placeholder {
+  min-height: 7rem;
+  background:
+    linear-gradient(
+      90deg,
+      rgb(30 41 59 / 0.04) 0%,
+      rgb(30 41 59 / 0.08) 50%,
+      rgb(30 41 59 / 0.04) 100%
+    );
+  background-size: 200% 100%;
+  animation: flow-conditions-shimmer 1.3s linear infinite;
+}
+
+.flow-conditions__placeholder--text {
+  min-height: 12rem;
+}
+
+@keyframes flow-conditions-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 22rem) {
+  .flow-conditions__article-head {
+    flex-direction: column;
+  }
+}

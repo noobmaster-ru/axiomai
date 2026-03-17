@@ -42,7 +42,7 @@ async def main() -> None:
     config = load_config()
     app = create_app(config)
 
-    server_config = uvicorn.Config(app, host="0.0.0.0", port=8000)
+    server_config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_config=None)
     server = uvicorn.Server(server_config)
     await server.serve()
 

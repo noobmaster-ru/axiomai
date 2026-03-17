@@ -21,3 +21,5 @@ sunny-might*
 
 *pgdata_dev/
 .VSCodeCounter*
+/frontend_ref
+package-lock.json

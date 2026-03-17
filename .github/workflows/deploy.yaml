@@ -14,6 +14,18 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy compose files to server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: "docker-compose.prod.yaml,docker-compose.grafana.yaml"
+          target: ${{ secrets.PROD_PATH }}
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
