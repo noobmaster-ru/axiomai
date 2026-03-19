@@ -23,7 +23,7 @@ jobs:
           host: ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          source: "docker-compose.prod.yaml,docker-compose.grafana.yaml"
+          source: "docker-compose.prod.yaml,docker-compose.grafana.yaml,vector/,grafana/"
           target: ${{ secrets.PROD_PATH }}
 
       - name: Deploy via SSH
