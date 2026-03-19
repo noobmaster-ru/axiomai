@@ -71,7 +71,7 @@ jobs:
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
             build_args: |
-              VITE_API_BASE_URL=/api
+              VITE_API_BASE_URL=https://axiomai-wb.com/api
               VITE_ARTICLES_DATA_SOURCE=http
               VITE_API_TELEGRAM_ID=0
     permissions:
