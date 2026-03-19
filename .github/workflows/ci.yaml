@@ -66,9 +66,14 @@ jobs:
           - image_name: ${{ github.repository }}
             context: .
             dockerfile: ./Dockerfile
+            build_args: ""
           - image_name: ${{ github.repository }}-frontend
             context: ./frontend
-            dockerfile: ./frontend/Dockerfile
+            dockerfile: ./Dockerfile
+            build_args: |
+              VITE_API_BASE_URL=/api
+              VITE_ARTICLES_DATA_SOURCE=http
+              VITE_API_TELEGRAM_ID=0
     permissions:
       contents: read
       packages: write
@@ -94,37 +99,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-  build-and-push-frontend-image:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    needs: [test, lint]
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}-frontend
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
+          build-args: ${{ matrix.build_args }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
