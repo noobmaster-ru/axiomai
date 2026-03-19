@@ -66,9 +66,14 @@ jobs:
           - image_name: ${{ github.repository }}
             context: .
             dockerfile: ./Dockerfile
+            build_args: ""
           - image_name: ${{ github.repository }}-frontend
             context: ./frontend
-            dockerfile: ./frontend/Dockerfile
+            dockerfile: ./Dockerfile
+            build_args: |
+              VITE_API_BASE_URL=/api
+              VITE_ARTICLES_DATA_SOURCE=http
+              VITE_API_TELEGRAM_ID=0
     permissions:
       contents: read
       packages: write
@@ -94,6 +99,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build_args }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
