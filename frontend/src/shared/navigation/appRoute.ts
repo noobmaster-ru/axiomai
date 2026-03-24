@@ -5,6 +5,9 @@ export type AppRoute =
       name: "catalog";
     }
   | {
+      name: "profile";
+    }
+  | {
       articleId: number;
       name: "article";
     }
@@ -19,6 +22,10 @@ function parseAppRoute(hash: string): AppRoute {
 
   if (!normalizedHash || normalizedHash === "/") {
     return { name: "catalog" };
+  }
+
+  if (normalizedHash === "/profile") {
+    return { name: "profile" };
   }
 
   const articleMatch = normalizedHash.match(/^\/articles\/(\d+)$/);
@@ -93,6 +100,10 @@ export function getCurrentAppRoute(): AppRoute {
 
 export function navigateToCatalog() {
   window.location.hash = "/";
+}
+
+export function navigateToProfile() {
+  window.location.hash = "/profile";
 }
 
 export function navigateToArticle(articleId: number) {

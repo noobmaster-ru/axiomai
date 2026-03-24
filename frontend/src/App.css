@@ -36,7 +36,7 @@
   min-height: 2.5rem;
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-3);
   background: var(--color-surface-elevated);
   color: var(--color-text-primary);
   font-size: var(--font-size-body-sm);
@@ -189,5 +189,11 @@
 @media (max-width: 39rem) {
   .app-header__action {
     align-self: stretch;
+  }
+}
+
+@media (max-width: 24rem) {
+  .app-header {
+    flex-direction: column;
   }
 }

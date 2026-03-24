@@ -16,6 +16,7 @@ import {
   navigateToFlowDetails,
   navigateToFlowFeedback,
   navigateToFlowOrder,
+  navigateToProfile,
   subscribeToAppRoute,
   type AppRoute,
 } from "./shared/navigation/appRoute";
@@ -26,6 +27,7 @@ import { FlowCompleteScreen } from "./screens/flow/FlowCompleteScreen";
 import { FlowDetailsScreen } from "./screens/flow/FlowDetailsScreen";
 import { FlowFeedbackScreen } from "./screens/flow/FlowFeedbackScreen";
 import { FlowOrderScreen } from "./screens/flow/FlowOrderScreen";
+import { ProfileScreen } from "./screens/profile/ProfileScreen";
 
 type CatalogErrorState = {
   description: string;
@@ -74,6 +76,18 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const deferredQuery = useDeferredValue(searchQuery);
   const normalizedQuery = deferredQuery.trim().toLowerCase();
+
+  function handleBottomNavSelect(key: "profile" | "requests" | "statuses") {
+    if (key === "profile") {
+      navigateToProfile();
+      return;
+    }
+
+    if (key === "requests") {
+      navigateToCatalog();
+      return;
+    }
+  }
 
   useEffect(() => {
     return subscribeToAppRoute(setRoute);
@@ -145,7 +159,7 @@ export default function App() {
             </div>
           </div>
         }
-        bottomSlot={<BottomNav activeKey="requests" />}
+        bottomSlot={<BottomNav activeKey="requests" onSelect={handleBottomNavSelect} />}
       >
         <ProductDetailsScreen
           articleId={route.articleId}
@@ -229,6 +243,24 @@ export default function App() {
     );
   }
 
+  if (route.name === "profile") {
+    return (
+      <AppShell
+        topSlot={
+          <div className="app-header">
+            <div className="app-header__meta">
+              <p className="app-header__eyebrow">AxiomAI Cashback</p>
+              <h1 className="app-header__title">Профиль</h1>
+            </div>
+          </div>
+        }
+        bottomSlot={<BottomNav activeKey="profile" onSelect={handleBottomNavSelect} />}
+      >
+        <ProfileScreen />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell
       topSlot={
@@ -238,13 +270,9 @@ export default function App() {
             <h1 className="app-header__title">Каталог</h1>
             <p className="app-header__subtitle">Выберите товар и начните оформление кэшбэка</p>
           </div>
-
-          <button className="app-header__action" type="button">
-            Профиль
-          </button>
         </div>
       }
-      bottomSlot={<BottomNav activeKey="requests" />}
+      bottomSlot={<BottomNav activeKey="requests" onSelect={handleBottomNavSelect} />}
     >
       <div className="home-screen">
         <section className="home-screen__intro">
