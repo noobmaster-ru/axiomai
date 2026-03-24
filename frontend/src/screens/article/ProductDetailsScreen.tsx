@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Article } from "../../entities/article/model";
 import { articleRepository } from "../../shared/api";
+import { InstructionContent } from "../../shared/ui/InstructionContent";
 import { toReadOnlyDataError, type ReadOnlyDataErrorKind } from "../../shared/api/errors";
 import "./ProductDetailsScreen.css";
 
@@ -181,7 +182,7 @@ export function ProductDetailsScreen({
         </div>
 
         <div className="product-details__conditions-card">
-          <p className="product-details__conditions-text">{article.instructionText}</p>
+          <InstructionContent className="product-details__conditions-text" text={article.instructionText} />
         </div>
       </section>
 

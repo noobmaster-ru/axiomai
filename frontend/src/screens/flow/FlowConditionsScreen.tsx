@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { FlowLayout } from "../../components/flow/FlowLayout";
 import type { Article } from "../../entities/article/model";
 import { articleRepository } from "../../shared/api";
+import { InstructionContent } from "../../shared/ui/InstructionContent";
 import "./FlowConditionsScreen.css";
 
 type FlowConditionsScreenProps = {
@@ -114,7 +115,7 @@ export function FlowConditionsScreen({
           </div>
 
           <div className="flow-conditions__content-card">
-            <p className="flow-conditions__content-text">{article.instructionText}</p>
+            <InstructionContent className="flow-conditions__content-text" text={article.instructionText} />
           </div>
         </section>
       </div>
