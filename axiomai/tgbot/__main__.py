@@ -2,6 +2,7 @@ import asyncio
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import BaseStorage, DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage
@@ -22,11 +23,18 @@ from axiomai.tgbot import bot_commands, handlers
 async def main() -> None:
     config = load_config()
     setup_logging(json_logs=config.json_logs)
+    
+    # ip немецкого сервера для проксирования запросов к Telegram API
+    session = AiohttpSession(proxy="http://64.188.56.207:8888")
 
     redis = Redis.from_url(config.redis_uri)
     storage = RedisStorage(redis, key_builder=DefaultKeyBuilder(with_destiny=True, with_business_connection_id=True))
 
-    bot = Bot(token=config.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot = Bot(
+        token=config.bot_token,
+        session=session,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
     dispatcher = Dispatcher(storage=storage)
 
     # Создаем DI контейнер с провайдерами
