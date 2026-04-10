@@ -25,13 +25,13 @@ async def main() -> None:
     setup_logging(json_logs=config.json_logs)
     
     # ip немецкого сервера для проксирования запросов к Telegram API
-    session = AiohttpSession(proxy=f"http://64.188.56.207:8888") 
+    session = AiohttpSession(proxy="http://64.188.56.207:8888")
 
     redis = Redis.from_url(config.redis_uri)
     storage = RedisStorage(redis, key_builder=DefaultKeyBuilder(with_destiny=True, with_business_connection_id=True))
 
     bot = Bot(
-        token=config.bot_token, 
+        token=config.bot_token,
         session=session,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
