@@ -1,0 +1,122 @@
+.profile-screen {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.profile-screen__hero,
+.profile-screen__info-list,
+.profile-screen__note-card {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-4);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-card-soft);
+}
+
+.profile-screen__hero,
+.profile-screen__note-card {
+  padding: var(--space-4);
+}
+
+.profile-screen__hero-head,
+.profile-screen__identity,
+.profile-screen__section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.profile-screen__hero-head {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.profile-screen__avatar {
+  width: 4.75rem;
+  height: 4.75rem;
+  border-radius: 1.5rem;
+  object-fit: cover;
+  background: var(--color-surface-muted);
+}
+
+.profile-screen__avatar--fallback {
+  display: grid;
+  place-items: center;
+  color: var(--color-text-on-brand);
+  background: var(--color-action-primary);
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.profile-screen__name,
+.profile-screen__section-title {
+  margin: 0;
+  line-height: var(--line-height-snug);
+}
+
+.profile-screen__note-text {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.profile-screen__username {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  width: fit-content;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-brand);
+  color: var(--color-brand-contrast);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.profile-screen__section-header {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.profile-screen__info-list {
+  overflow: hidden;
+}
+
+.profile-screen__info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.profile-screen__info-row + .profile-screen__info-row {
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.profile-screen__info-label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body-sm);
+}
+
+.profile-screen__info-value {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  text-align: right;
+}
+
+@media (max-width: 24rem) {
+  .profile-screen__hero-head,
+  .profile-screen__info-row {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-screen__hero-head {
+    justify-items: start;
+  }
+
+  .profile-screen__info-row {
+    display: grid;
+  }
+
+  .profile-screen__info-value {
+    text-align: left;
+  }
+}
