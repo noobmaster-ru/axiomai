@@ -6,7 +6,7 @@ services:
       - ".env"
     volumes:
       - ./assets:/app/assets
-      - ./sunny-might-477012-c4-04c66c69a92f.json:/app/sunny-might-477012-c4-04c66c69a92f.json:ro
+      - ./${SERVICE_ACCOUNT_AXIOMAI}:/app/${SERVICE_ACCOUNT_AXIOMAI}:ro
     restart: unless-stopped
     command: "python -m axiomai.tgbot"
 
@@ -16,7 +16,7 @@ services:
     env_file:
       - ".env"
     volumes:
-      - ./sunny-might-477012-c4-04c66c69a92f.json:/app/sunny-might-477012-c4-04c66c69a92f.json:ro
+      - ./${SERVICE_ACCOUNT_AXIOMAI}:/app/${SERVICE_ACCOUNT_AXIOMAI}:ro
     restart: unless-stopped
     command: "python -m axiomai.observer"
 
