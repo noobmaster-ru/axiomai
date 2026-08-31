@@ -39,6 +39,7 @@ class UpdateBuyerScreenshot:
         field_name = _FIELD_MAP[screenshot_type]
         setattr(buyer, field_name, True)
         await self._transaction_manager.commit()
+        await self._buyer_gateway.refresh(buyer)
 
         logger.info("buyer %s screenshot %s accepted", buyer_id, screenshot_type.value)
         return buyer

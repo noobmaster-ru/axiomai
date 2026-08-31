@@ -12,6 +12,7 @@ from axiomai.application.interactors.refill_balance.cancel_payment import Cancel
 from axiomai.application.interactors.refill_balance.confirm_payment import ConfirmRefillBalancePayment
 from axiomai.application.interactors.create_buyer import CreateBuyer
 from axiomai.application.interactors.create_superbanking_payment import CreateSuperbankingPayment
+from axiomai.application.interactors.update_buyer_screenshot import UpdateBuyerScreenshot
 from axiomai.application.interactors.create_user import CreateSeller
 from axiomai.application.interactors.observe_balance_notifications import ObserveBalanceNotifications
 from axiomai.application.interactors.observe_cashback_tables import ObserveCashbackTables
@@ -78,4 +79,5 @@ class MocksProvider(GatewaysProvider):
         CreateBuyer,
         CancelBuyer,
         CreateSuperbankingPayment,
+        UpdateBuyerScreenshot,
     )
