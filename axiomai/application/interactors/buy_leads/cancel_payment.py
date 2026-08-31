@@ -1,6 +1,7 @@
 import logging
 
 from axiomai.application.exceptions.payment import PaymentAlreadyProcessedError, PaymentNotFoundError
+from axiomai.application.interactors.buy_leads.confirm_payment import _ensure_buy_leads_payment
 from axiomai.infrastructure.database.gateways.payment import PaymentGateway
 from axiomai.infrastructure.database.models.payment import PaymentStatus
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
@@ -21,6 +22,8 @@ class CancelBuyLeadsPayment:
         payment = await self._payment_gateway.get_payment_by_id(payment_id)
         if not payment:
             raise PaymentNotFoundError(f"Payment with id = {payment_id} not found")
+
+        _ensure_buy_leads_payment(payment_id, payment.service_data)
 
         transitioned = await self._payment_gateway.transition_status(
             payment_id, PaymentStatus.WAITING_CONFIRM, PaymentStatus.CANCELED

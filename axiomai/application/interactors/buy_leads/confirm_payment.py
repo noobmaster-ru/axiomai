@@ -4,13 +4,17 @@ from aiogram import Bot
 
 from axiomai.application.exceptions.cabinet import CabinetNotFoundError
 from axiomai.application.exceptions.cashback_table import CashbackTableNotFoundError
-from axiomai.application.exceptions.payment import PaymentAlreadyProcessedError, PaymentNotFoundError
+from axiomai.application.exceptions.payment import (
+    PaymentAlreadyProcessedError,
+    PaymentNotFoundError,
+    PaymentTypeMismatchError,
+)
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.gateways.payment import PaymentGateway
 from axiomai.infrastructure.database.gateways.user import UserGateway
 from axiomai.infrastructure.database.models.cashback_table import CashbackTableStatus
-from axiomai.infrastructure.database.models.payment import PaymentStatus
+from axiomai.infrastructure.database.models.payment import SERVICE_DATA_TYPE_BUY_LEADS, PaymentStatus
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
 from axiomai.infrastructure.telegram.keyboards.reply import get_kb_menu
 
@@ -38,6 +42,8 @@ class ConfirmBuyLeadsPayment:
         payment = await self._payment_gateway.get_payment_by_id(payment_id)
         if not payment:
             raise PaymentNotFoundError(f"Payment with id = {payment_id} not found")
+
+        _ensure_buy_leads_payment(payment_id, payment.service_data)
 
         cashback_table = await self._cashback_table_gateway.get_cashback_table_by_id(payment.cashback_table_id)
         if not cashback_table:
@@ -78,3 +84,9 @@ class ConfirmBuyLeadsPayment:
                 "Теперь боту снова можно принимать заявки от клиентов."
             )
             await self._bot.send_message(chat_id=user.telegram_id, text=text, reply_markup=get_kb_menu(cabinet))
+
+
+def _ensure_buy_leads_payment(payment_id: int, service_data: dict) -> None:
+    payment_type = service_data.get("type")
+    if payment_type != SERVICE_DATA_TYPE_BUY_LEADS:
+        raise PaymentTypeMismatchError(f"Payment {payment_id} is not a buy-leads payment (type={payment_type!r})")

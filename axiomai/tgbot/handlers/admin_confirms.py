@@ -4,12 +4,17 @@ from aiogram.types import CallbackQuery
 from dishka import FromDishka
 from dishka.integrations.aiogram import inject
 
-from axiomai.application.exceptions.payment import PaymentAlreadyProcessedError, PaymentNotFoundError
+from axiomai.application.exceptions.payment import (
+    PaymentAlreadyProcessedError,
+    PaymentNotFoundError,
+    PaymentTypeMismatchError,
+)
 from axiomai.application.interactors.buy_leads.cancel_payment import CancelBuyLeadsPayment
 from axiomai.application.interactors.buy_leads.confirm_payment import ConfirmBuyLeadsPayment
 from axiomai.application.interactors.refill_balance.cancel_payment import CancelRefillBalancePayment
 from axiomai.application.interactors.refill_balance.confirm_payment import ConfirmRefillBalancePayment
 from axiomai.infrastructure.database.gateways.payment import PaymentGateway
+from axiomai.infrastructure.database.models.payment import SERVICE_DATA_TYPE_BUY_LEADS, SERVICE_DATA_TYPE_REFILL_BALANCE
 from axiomai.tgbot.filters.is_admin import IsAdminFilter
 
 router = Router()
@@ -36,16 +41,24 @@ async def admin_confirm_payment(
         await callback.message.edit_text(callback.message.text + "\n\n❌ Платеж не найден")
         return
 
+    payment_type = payment.service_data.get("type")
     try:
-        if payment.service_data.get("type") == "buy_leads":
+        if payment_type == SERVICE_DATA_TYPE_BUY_LEADS:
             await confirm_buy_leads.execute(callback.from_user.id, payment_id)
-        else:
+        elif payment_type in (None, SERVICE_DATA_TYPE_REFILL_BALANCE):
+            # None — легаси-платежи, созданные до появления service_data["type"]
             await confirm_refill_balance.execute(callback.from_user.id, payment_id)
+        else:
+            await callback.answer(f"❌ Неизвестный тип платежа: {payment_type}", show_alert=True)
+            return
     except PaymentNotFoundError:
         await callback.answer("❌ Платеж не найден", show_alert=True)
         return
     except PaymentAlreadyProcessedError:
         await callback.answer("❌ Платеж уже был обработан", show_alert=True)
+        return
+    except PaymentTypeMismatchError:
+        await callback.answer("❌ Платёж не соответствует типу операции", show_alert=True)
         return
 
     await callback.message.edit_text(callback.message.text + "\n\n✅ Оплата подтверждена.")
@@ -73,16 +86,23 @@ async def admin_reject_payment(
         await callback.message.edit_text(callback.message.text + "\n\n❌ Платеж не найден")
         return
 
+    payment_type = payment.service_data.get("type")
     try:
-        if payment.service_data.get("type") == "buy_leads":
+        if payment_type == SERVICE_DATA_TYPE_BUY_LEADS:
             await cancel_buy_leads.execute(callback.from_user.id, payment_id)
-        else:
+        elif payment_type in (None, SERVICE_DATA_TYPE_REFILL_BALANCE):
             await cancel_refill_balance.execute(callback.from_user.id, payment_id)
+        else:
+            await callback.answer(f"❌ Неизвестный тип платежа: {payment_type}", show_alert=True)
+            return
     except PaymentNotFoundError:
         await callback.answer("❌ Платеж не найден", show_alert=True)
         return
     except PaymentAlreadyProcessedError:
         await callback.answer("❌ Платеж уже был обработан", show_alert=True)
+        return
+    except PaymentTypeMismatchError:
+        await callback.answer("❌ Платёж не соответствует типу операции", show_alert=True)
         return
 
     await callback.message.edit_text(callback.message.text + "\n\n❌ Оплата отклонена.")

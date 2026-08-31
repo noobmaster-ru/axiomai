@@ -8,6 +8,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from axiomai.infrastructure.database.models.base import Base
 
+# Значения service_data["type"]: по нему admin_confirms маршрутизирует платёж в нужный интерактор
+SERVICE_DATA_TYPE_REFILL_BALANCE = "refill_balance"
+SERVICE_DATA_TYPE_BUY_LEADS = "buy_leads"
+
 
 class ServiceType(enum.Enum):
     CASHBACK = "cashback"
