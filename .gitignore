@@ -19,6 +19,10 @@ DataExport*
 ChatExport*
 sunny-might*
 
+*.pdf
+*.pptx
+*.xlsx
+
 *pgdata_dev/
 .VSCodeCounter*
 /frontend_ref

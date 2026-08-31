@@ -9,15 +9,11 @@ export type ArticleResponseDto = {
   cashback_percent: number;
 };
 
-export type ListArticlesRequest = {
-  telegramId: number;
-};
-
 export type GetArticleRequest = {
   articleId: number;
 };
 
 export type ArticlesDataSource = {
-  listArticles: (request: ListArticlesRequest) => Promise<ArticleResponseDto[]>;
+  listArticles: () => Promise<ArticleResponseDto[]>;
   getArticle: (request: GetArticleRequest) => Promise<ArticleResponseDto | null>;
 };

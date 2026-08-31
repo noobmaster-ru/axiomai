@@ -10,11 +10,12 @@ from axiomai.application.interactors.buy_leads.confirm_payment import ConfirmBuy
 from axiomai.application.interactors.refill_balance.cancel_payment import CancelRefillBalancePayment
 from axiomai.application.interactors.refill_balance.confirm_payment import ConfirmRefillBalancePayment
 from axiomai.infrastructure.database.gateways.payment import PaymentGateway
+from axiomai.tgbot.filters.is_admin import IsAdminFilter
 
 router = Router()
 
 
-@router.callback_query(F.data.startswith("admin_pay_ok:"))
+@router.callback_query(F.data.startswith("admin_pay_ok:"), IsAdminFilter())
 @inject
 async def admin_confirm_payment(
     callback: CallbackQuery,
@@ -50,7 +51,7 @@ async def admin_confirm_payment(
     await callback.message.edit_text(callback.message.text + "\n\n✅ Оплата подтверждена.")
 
 
-@router.callback_query(F.data.startswith("admin_pay_fail:"))
+@router.callback_query(F.data.startswith("admin_pay_fail:"), IsAdminFilter())
 @inject
 async def admin_reject_payment(
     callback: CallbackQuery,

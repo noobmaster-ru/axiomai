@@ -2,7 +2,6 @@ import re
 
 # Telegram
 WB_CHANNEL_NAME = "@best_wb_hits"
-OWNER_TELEGRAM_ID = 694144143
 
 # Superbanking
 SUPERBANKING_ORDER_PREFIX = "payment-"
@@ -13,6 +12,7 @@ CONFIRM_PAYMENT_MAX_RETRIES = 5
 CONFIRM_PAYMENT_BACKOFF_BASE = 5  # seconds, doubles each attempt: 5, 10, 20, 40, 80
 URL_CONFIRM_PAYMENT = "https://api.superbanking.ru/cabinet/confirmOperation/createOne?v=1.0.0"
 SUPERBANKING_COMMISSION = 25
+SUPERBANKING_ERROR_BODY_PREVIEW_LENGTH = 500  # символов тела ответа в сообщении SuperbankingRequestError
 AXIOMAI_COMMISSION = 5
 
 # Google Sheets

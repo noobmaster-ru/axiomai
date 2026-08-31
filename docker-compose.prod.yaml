@@ -27,8 +27,6 @@ services:
       - ".env"
     volumes:
       - ./assets:/app/assets
-    ports:
-      - "8000:8000"
     restart: unless-stopped
     command: "python -m axiomai.api"
 

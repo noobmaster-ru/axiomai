@@ -10,6 +10,12 @@ function createApiUrl(baseUrl: string, path: string) {
   return new URL(path.replace(/^\/+/, ""), `${baseUrl}/`);
 }
 
+function buildAuthHeaders(): Record<string, string> {
+  // initData подписана ботом; бэкенд проверяет подпись и берёт telegram_id из неё
+  const initData = window.Telegram?.WebApp?.initData;
+  return initData ? { Authorization: `tma ${initData}` } : {};
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   try {
     return (await response.json()) as T;
@@ -79,9 +85,8 @@ export function createHttpArticlesDataSource({
   fetchFn = fetch,
 }: HttpArticlesDataSourceConfig): ArticlesDataSource {
   return {
-    async listArticles({ telegramId }) {
+    async listArticles() {
       const url = createApiUrl(baseUrl, "articles");
-      url.searchParams.set("telegram_id", String(telegramId));
 
       let response: Response;
 
@@ -89,6 +94,7 @@ export function createHttpArticlesDataSource({
         response = await fetchFn(url.toString(), {
           headers: {
             Accept: "application/json",
+            ...buildAuthHeaders(),
           },
           method: "GET",
         });
@@ -119,6 +125,7 @@ export function createHttpArticlesDataSource({
         response = await fetchFn(url.toString(), {
           headers: {
             Accept: "application/json",
+            ...buildAuthHeaders(),
           },
           method: "GET",
         });

@@ -43,14 +43,15 @@ class ConfirmRefillBalancePayment:
                 f"Cashback_table.id = {payment.service_data['service_id']} not found for the confirm payment"
             )
 
-        if payment.status != PaymentStatus.WAITING_CONFIRM:
+        transitioned = await self._payment_gateway.transition_status(
+            payment_id, PaymentStatus.WAITING_CONFIRM, PaymentStatus.SUCCEEDED
+        )
+        if not transitioned:
             raise PaymentAlreadyProcessedError(
                 f"Payment with id = {payment_id} has already been processed (status: {payment.status.value})"
             )
 
-        payment.status = PaymentStatus.SUCCEEDED
-        cabinet.balance += payment.amount
-        cabinet.initial_balance = cabinet.balance
+        await self._cabinet_gateway.add_refill_balance(cabinet.id, payment.amount)
 
         await self._tm.commit()
 

@@ -73,7 +73,6 @@ jobs:
             build_args: |
               VITE_API_BASE_URL=https://axiomai-wb.com/api
               VITE_ARTICLES_DATA_SOURCE=http
-              VITE_API_TELEGRAM_ID=0
     permissions:
       contents: read
       packages: write

@@ -10,6 +10,4 @@ const articlesDataSource =
     ? createHttpArticlesDataSource({ baseUrl: apiConfig.apiBaseUrl })
     : mockArticlesDataSource;
 
-export const articleRepository = createArticleRepository(articlesDataSource, {
-  telegramId: apiConfig.telegramId,
-});
+export const articleRepository = createArticleRepository(articlesDataSource);

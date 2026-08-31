@@ -24,6 +24,7 @@ from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, merge_messages_text
 from axiomai.infrastructure.openai import OpenAIGateway
+from axiomai.infrastructure.telegram.common import telegram_photo_to_data_url
 from axiomai.infrastructure.telegram.dialogs.cashback_article.common import determine_resume_state
 from axiomai.infrastructure.telegram.dialogs.states import CashbackArticleStates
 from axiomai.infrastructure.telegram.keyboards.inline import build_manager_handled_keyboard
@@ -50,7 +51,11 @@ async def process_clients_business_message(
     cabinet = await cabinet_gateway.get_cabinet_by_business_connection_id(message.business_connection_id)
 
     if not cabinet:
-        logger.warning("no cabinet found for business connection %s, skipping message from chat %s", message.business_connection_id, message.chat.id)
+        logger.warning(
+            "no cabinet found for business connection %s, skipping message from chat %s",
+            message.business_connection_id,
+            message.chat.id,
+        )
         return
 
     if cabinet.leads_balance <= 0:
@@ -67,7 +72,9 @@ async def process_clients_business_message(
     if resume_state:
         logger.info(
             "resuming dialog for chat %s at state %s with %s active buyers",
-            message.chat.id, resume_state, len(active_buyers),
+            message.chat.id,
+            resume_state,
+            len(active_buyers),
         )
 
         await state.set_state("client_processing")
@@ -80,18 +87,14 @@ async def process_clients_business_message(
 
     message_text = message.text or message.caption or ""
 
-    photo_url = None
-    if message.photo:
-        photo = message.photo[-1]
-        file = await bot.get_file(photo.file_id)
-        photo_url = f"https://api.telegram.org/file/bot{bot.token}/{file.file_path}"
+    photo_file_id = message.photo[-1].file_id if message.photo else None
 
     message_data = MessageData(
         text=message_text,
         timestamp=datetime.now(UTC).timestamp(),
         message_id=message.message_id,
         has_photo=bool(message.photo),
-        photo_url=photo_url,
+        photo_file_id=photo_file_id,
     )
     bg_manager = dialog_manager.bg()
     app_container = di_container.parent_container
@@ -101,7 +104,15 @@ async def process_clients_business_message(
         chat_id=message.chat.id,
         message_data=message_data,
         process_callback=lambda biz_id, chat_id, msgs: _process_accumulated_messages(
-            biz_id, chat_id, message.from_user.username, message.from_user.full_name, msgs, bot, state, bg_manager, app_container
+            biz_id,
+            chat_id,
+            message.from_user.username,
+            message.from_user.full_name,
+            msgs,
+            bot,
+            state,
+            bg_manager,
+            app_container,
         ),
     )
 
@@ -150,17 +161,17 @@ async def _process_accumulated_messages(
 
     combined_text = merge_messages_text(messages)
 
-    photo_urls = [msg.photo_url for msg in messages if msg.photo_url]
-    photo_url = photo_urls[0] if photo_urls else None
+    photo_file_ids = [msg.photo_file_id for msg in messages if msg.photo_file_id]
+    photo_data_url = await telegram_photo_to_data_url(bot, photo_file_ids[0]) if photo_file_ids else None
 
     logger.debug("combined text: %s...", combined_text[:100])
-    logger.debug("photo urls: %s", len(photo_urls))
+    logger.debug("photos: %s", len(photo_file_ids))
 
     result = await openai_gateway.chat_with_client(
         user_message=combined_text,
         articles=articles,
         chat_history=chat_history,
-        photo_url=photo_url,
+        photo_data_url=photo_data_url,
     )
 
     response_text = result["response"]
@@ -213,9 +224,7 @@ async def _process_accumulated_messages(
                 await create_buyer.execute(chat_id, username, fullname, article_id, predialog_history)
 
         await dialog_manager.start(
-            CashbackArticleStates.check_order,
-            mode=StartMode.RESET_STACK,
-            show_mode=ShowMode.SEND
+            CashbackArticleStates.check_order, mode=StartMode.RESET_STACK, show_mode=ShowMode.SEND
         )
     else:
         await add_predialog_chat_history(redis, business_connection_id, chat_id, combined_text, response_text)

@@ -24,8 +24,8 @@ async def main() -> None:
     config = load_config()
     setup_logging(json_logs=config.json_logs)
     
-    # ip немецкого сервера для проксирования запросов к Telegram API
-    session = AiohttpSession(proxy="http://64.188.56.207:8888")
+    # Прокси для запросов к Telegram API (TELEGRAM_PROXY в .env); пусто — прямое подключение
+    session = AiohttpSession(proxy=config.telegram_proxy or None)
 
     redis = Redis.from_url(config.redis_uri)
     storage = RedisStorage(redis, key_builder=DefaultKeyBuilder(with_destiny=True, with_business_connection_id=True))
@@ -46,7 +46,7 @@ async def main() -> None:
         context={Config: config, Redis: redis, Bot: bot, BaseStorage: storage},
     )
 
-    dispatcher.message.middleware(ForwardSellerMessagesMiddleware(config.admin_telegram_ids))
+    dispatcher.message.middleware(ForwardSellerMessagesMiddleware(config.admin_telegram_ids, config.owner_telegram_id))
 
     handlers.setup(dispatcher)
     dialogs.setup(dispatcher)

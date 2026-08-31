@@ -26,7 +26,7 @@ class MessageData:
     timestamp: float
     message_id: int
     has_photo: bool
-    photo_url: str | None = None
+    photo_file_id: str | None = None  # Telegram file_id фото
     chat_id: int | None = None  # Добавлено для возможности отправки ответа
 
 
@@ -159,7 +159,7 @@ def _serialize_messages(accumulated: AccumulatedMessages) -> str:
                     "timestamp": msg.timestamp,
                     "message_id": msg.message_id,
                     "has_photo": msg.has_photo,
-                    "photo_url": msg.photo_url,
+                    "photo_file_id": msg.photo_file_id,
                 }
                 for msg in accumulated.messages
             ],
@@ -184,7 +184,7 @@ def _deserialize_messages(data: bytes | str) -> AccumulatedMessages:
                 timestamp=msg["timestamp"],
                 message_id=msg["message_id"],
                 has_photo=msg["has_photo"],
-                photo_url=msg.get("photo_url"),
+                photo_file_id=msg.get("photo_file_id"),
             )
             for msg in parsed["messages"]
         ],

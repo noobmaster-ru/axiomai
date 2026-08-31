@@ -3,11 +3,16 @@ import logging
 
 from aiogram import Bot
 from aiogram.types import URLInputFile
-from aiohttp.web_exceptions import HTTPError
 from dishka import AsyncContainer
 
+from axiomai.application.exceptions.buyer import BuyerNotFoundError
 from axiomai.application.exceptions.payment import NotEnoughBalanceError
-from axiomai.application.exceptions.superbanking import CreatePaymentError, SignPaymentError, SkipSuperbankingError
+from axiomai.application.exceptions.superbanking import (
+    CreatePaymentError,
+    SignPaymentError,
+    SkipSuperbankingError,
+    SuperbankingRequestError,
+)
 from axiomai.constants import (
     AXIOMAI_COMMISSION,
     CONFIRM_PAYMENT_BACKOFF_BASE,
@@ -60,6 +65,8 @@ class CreateSuperbankingPayment:
             raise ValueError(f"Cabinet with id {cabinet_id} not found")
 
         buyers = await self._buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(telegram_id, cabinet_id)
+        if not buyers:
+            raise BuyerNotFoundError(f"No active buyers for telegram_id={telegram_id}, cabinet_id={cabinet_id}")
 
         nm_ids = []
 
@@ -88,7 +95,9 @@ class CreateSuperbankingPayment:
         cashback_charge = _calc_cashback_charge(buyers, articles_by_nm_id)
         total_charge = cashback_charge + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
 
-        if cabinet.balance < total_charge:
+        # Проверка и списание — один атомарный UPDATE; деньги резервируются ДО обращения к Superbanking,
+        # в одной транзакции с записью payout (commit ниже, rollback при ошибке Superbanking).
+        if not await self._cabinet_gateway.try_debit_balance(cabinet_id, total_charge):
             raise NotEnoughBalanceError
 
         order_number = self._superbanking_payout_gateway.build_order_number(
@@ -114,15 +123,15 @@ class CreateSuperbankingPayment:
                 amount=cashback_charge,
                 order_number=payout.order_number,
             )
-        except CreatePaymentError:
-            logger.exception("Failed to create_payment() Superbanking payout for payout_id=%s", payout.id)
+            await self._superbanking.sign_payment(
+                cabinet_transaction_id=cabinet_transaction_id, order_number=payout.order_number
+            )
+        except (CreatePaymentError, SignPaymentError):
+            logger.exception("Superbanking payout failed, rolling back debit for payout_id=%s", payout.id)
+            await self._transaction_manager.rollback()
             raise
 
-        try:
-            await self._superbanking.sign_payment(cabinet_transaction_id=cabinet_transaction_id, order_number=payout.order_number)
-        except SignPaymentError:
-            logger.exception("Failed to sign_payment() Superbanking payout for payout_id=%s", payout.id)
-            raise
+        await self._transaction_manager.commit()
 
         logger.info(
             "scheduling receipt check: telegram_id=%s, order_number=%s",
@@ -165,8 +174,15 @@ async def send_receipt_after_confirm(
         try:
             check_url = await superbanking.confirm_operation(order_number=order_number)
             break
-        except (ValueError, HTTPError) as exc:
+        except (ValueError, SuperbankingRequestError) as exc:
             last_exc = exc
+            if isinstance(exc, SuperbankingRequestError) and not exc.is_retryable:
+                logger.warning(
+                    "confirm_operation() failed with non-retryable status %s for telegram_id=%s",
+                    exc.status,
+                    telegram_id,
+                )
+                break
             delay = CONFIRM_PAYMENT_BACKOFF_BASE * (2 ** attempt)
             logger.warning(
                 "confirm_operation() attempt %d/%d failed for telegram_id=%s, retrying in %ds",
@@ -194,22 +210,16 @@ async def send_receipt_after_confirm(
     async with di_container() as r_container:
         buyer_gateway = await r_container.get(BuyerGateway)
         cabinet_gateway = await r_container.get(CabinetGateway)
-        cashback_table_gateway = await r_container.get(CashbackTableGateway)
         transaction_manager = await r_container.get(TransactionManager)
 
         buyers = await buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(telegram_id, cabinet_id)
         cabinet = await cabinet_gateway.get_cabinet_by_id(cabinet_id)
 
+        # Баланс уже списан в execute() в одной транзакции с созданием payout
         if buyers and cabinet:
-            nm_ids = [b.nm_id for b in buyers]
-            articles = await cashback_table_gateway.get_cashback_articles_by_nm_ids(nm_ids)
-            articles_by_nm_id = {a.nm_id: a for a in articles}
-            cashback_charge = _calc_cashback_charge(buyers, articles_by_nm_id)
-            total_charge = cashback_charge + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
             for buyer in buyers:
                 buyer.is_superbanking_paid = True
                 buyer.is_paid_manually = True
-            cabinet.balance -= total_charge
             await transaction_manager.commit()
 
     if not send_notifications:

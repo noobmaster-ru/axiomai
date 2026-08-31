@@ -21,14 +21,26 @@ from axiomai.infrastructure.message_debouncer import MessageData, TaskStrategy
 
 
 class FakeTransactionManager(TransactionManager):
+    """Тестовый TM: commit не фиксирует транзакцию (teardown откатывает всё),
+    а rollback откатывает только изменения после последнего commit — через SAVEPOINT,
+    чтобы не терять данные фикстур, как это делал бы session.rollback().
+    """
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self._savepoint = None
 
     async def commit(self) -> None:
         await self._session.flush()
+        self._savepoint = self._session.begin_nested()
+        await self._savepoint.start()
 
     async def rollback(self) -> None:
-        await self._session.rollback()
+        if self._savepoint is not None:
+            await self._savepoint.rollback()
+            self._savepoint = None
+        else:
+            await self._session.rollback()
 
 
 class FakeMessageDebouncer:

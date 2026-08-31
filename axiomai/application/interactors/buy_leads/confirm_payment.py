@@ -50,20 +50,21 @@ class ConfirmBuyLeadsPayment:
                 f"Cashback_table.cabinet_id = {cashback_table.cabinet_id} not found for the confirm payment"
             )
 
-        if payment.status != PaymentStatus.WAITING_CONFIRM:
+        transitioned = await self._payment_gateway.transition_status(
+            payment_id, PaymentStatus.WAITING_CONFIRM, PaymentStatus.SUCCEEDED
+        )
+        if not transitioned:
             raise PaymentAlreadyProcessedError(
                 f"Payment with id = {payment_id} has already been processed (status: {payment.status.value})"
             )
 
         leads = int(payment.service_data.get("leads", 0) or 0)
 
-        payment.status = PaymentStatus.SUCCEEDED
-
         if cashback_table.status != CashbackTableStatus.PAID:
             cashback_table.status = CashbackTableStatus.PAID
 
         if leads > 0:
-            cabinet.leads_balance = (cabinet.leads_balance or 0) + leads
+            await self._cabinet_gateway.add_leads_balance(cabinet.id, leads)
 
         await self._tm.commit()
 

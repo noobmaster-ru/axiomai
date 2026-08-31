@@ -2,10 +2,6 @@ import type { Article } from "../../../entities/article/model";
 import type { ArticleResponseDto, ArticlesDataSource } from "../contracts/articles";
 import { toReadOnlyDataError } from "../errors";
 
-type ArticleRepositoryConfig = {
-  telegramId: number;
-};
-
 export type ArticleRepository = {
   getCatalogArticles: () => Promise<Article[]>;
   getArticleById: (articleId: number) => Promise<Article | null>;
@@ -24,14 +20,11 @@ function mapArticle(dto: ArticleResponseDto): Article {
   };
 }
 
-export function createArticleRepository(
-  dataSource: ArticlesDataSource,
-  config: ArticleRepositoryConfig,
-): ArticleRepository {
+export function createArticleRepository(dataSource: ArticlesDataSource): ArticleRepository {
   return {
     async getCatalogArticles() {
       try {
-        const articles = await dataSource.listArticles({ telegramId: config.telegramId });
+        const articles = await dataSource.listArticles();
         return articles.map(mapArticle);
       } catch (error) {
         throw toReadOnlyDataError(error);

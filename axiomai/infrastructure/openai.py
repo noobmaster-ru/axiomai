@@ -68,7 +68,7 @@ class OpenAIGateway:
 
     async def classify_order_screenshot(
         self,
-        photo_url: str,
+        photo_data_url: str,
         articles: list[CashbackArticle],
     ) -> ClassifyOrderResult:
         """Классифицирует скриншот заказа по списку товаров."""
@@ -112,7 +112,7 @@ class OpenAIGateway:
 
         user_content = [
             {"type": "input_text", "text": prompt},
-            {"type": "input_image", "image_url": photo_url},
+            {"type": "input_image", "image_url": photo_data_url},
         ]
 
         for art in articles:
@@ -153,7 +153,7 @@ class OpenAIGateway:
 
     async def classify_feedback_screenshot(
         self,
-        photo_url: str,
+        photo_data_url: str,
         articles: list[CashbackArticle],
     ) -> ClassifyFeedbackResult:
         """Классифицирует скриншот отзыва по списку товаров."""
@@ -198,7 +198,7 @@ class OpenAIGateway:
 
         user_content = [
             {"type": "input_text", "text": prompt},
-            {"type": "input_image", "image_url": photo_url},
+            {"type": "input_image", "image_url": photo_data_url},
         ]
         
         for art in articles:
@@ -247,7 +247,7 @@ class OpenAIGateway:
 
     async def classify_cut_labels_photo(
         self,
-        photo_url: str,
+        photo_data_url: str,
         articles: list[CashbackArticle] | None = None,
     ) -> ClassifyCutLabelsResult:
         first_instruction = articles[0].instruction_text if articles else None
@@ -269,7 +269,7 @@ class OpenAIGateway:
 
         user_content = [
             {"type": "input_text", "text": prompt},
-            {"type": "input_image", "image_url": photo_url},
+            {"type": "input_image", "image_url": photo_data_url},
         ]
 
         messages = [
@@ -394,7 +394,7 @@ class OpenAIGateway:
         user_message: str,
         articles: list[CashbackArticle],
         chat_history: list[ChatHistoryEntry] | None = None,
-        photo_url: str | None = None,
+        photo_data_url: str | None = None,
     ) -> PredialogResult:
         """Ведёт pre-dialog общение с клиентом до классификации артикула."""
         articles_info = "\n".join(f"- ID:{article.id} | Название: {article.title}" for article in articles)
@@ -468,10 +468,10 @@ class OpenAIGateway:
         """
 
         user_content: list[dict[str, str]] | str
-        if photo_url:
+        if photo_data_url:
             user_content = [
                 {"type": "input_text", "text": prompt},
-                {"type": "input_image", "image_url": photo_url},
+                {"type": "input_image", "image_url": photo_data_url},
             ]
         else:
             user_content = prompt

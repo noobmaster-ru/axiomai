@@ -103,6 +103,8 @@ async def di_container(session):
     google_sheets_mock.sync_buyers_to_sheet = AsyncMock()
     config = MagicMock()
     config.delay_between_bot_messages = 0
+    config.owner_telegram_id = 999_999
+    config.admin_username = "@support"
 
     container = make_async_container(
         MocksProvider(),

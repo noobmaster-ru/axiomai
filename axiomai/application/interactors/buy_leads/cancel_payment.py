@@ -22,12 +22,14 @@ class CancelBuyLeadsPayment:
         if not payment:
             raise PaymentNotFoundError(f"Payment with id = {payment_id} not found")
 
-        if payment.status != PaymentStatus.WAITING_CONFIRM:
+        transitioned = await self._payment_gateway.transition_status(
+            payment_id, PaymentStatus.WAITING_CONFIRM, PaymentStatus.CANCELED
+        )
+        if not transitioned:
             raise PaymentAlreadyProcessedError(
                 f"Payment with id = {payment_id} has already been processed (status: {payment.status.value})"
             )
 
-        payment.status = PaymentStatus.CANCELED
         if reason:
             payment.canceled_reason = reason
 

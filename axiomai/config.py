@@ -1,7 +1,6 @@
-import os
 from os import environ
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SuperbankingConfig(BaseModel):
@@ -29,17 +28,29 @@ class Config(BaseModel):
     bot_token: str = Field(alias="BOT_TOKEN")
     service_account_axiomai: str = Field(alias="SERVICE_ACCOUNT_AXIOMAI")
     service_account_axiomai_email: str = Field(alias="SERVICE_ACCOUNT_AXIOMAI_EMAIL")
+    telegram_proxy: str | None = Field(alias="TELEGRAM_PROXY", default=None)
 
-    admin_telegram_ids: list[int] = Field(
-        default_factory=lambda: [int(x) for x in os.getenv("ADMIN_TELEGRAM_IDS", "694144143,547299317").split(",")],
-    )
-    admin_username: str = Field(alias="ADMIN_USERNAME", default="@noobmaster_rus")
+    admin_telegram_ids: list[int] = Field(alias="ADMIN_TELEGRAM_IDS")
+    owner_telegram_id: int = Field(alias="OWNER_TELEGRAM_ID")
+    admin_username: str = Field(alias="ADMIN_USERNAME")
 
     delay_between_bot_messages: float = Field(alias="DELAY_BETWEEN_BOT_MESSAGES", default=2.25)
+
+    cors_allowed_origins: str = Field(alias="CORS_ALLOWED_ORIGINS", default="")
+    # ТОЛЬКО для локальной разработки: подставляет telegram_id вместо проверки initData
+    api_auth_dev_telegram_id: int | None = Field(alias="API_AUTH_DEV_TELEGRAM_ID", default=None)
 
     message_debouncer: MessageDebouncerConfig = Field(default_factory=lambda: MessageDebouncerConfig(**environ))
     superbankink_config: SuperbankingConfig = Field(default_factory=lambda: SuperbankingConfig(**environ))
     openai_config: OpenAIConfig = Field(default_factory=lambda: OpenAIConfig(**environ))
+
+    @field_validator("admin_telegram_ids", mode="before")
+    @classmethod
+    def _parse_admin_telegram_ids(cls, value: str | list[int]) -> list[int]:
+        """ADMIN_TELEGRAM_IDS в .env — строка вида "111,222"."""
+        if isinstance(value, str):
+            return [int(x) for x in value.split(",") if x.strip()]
+        return value
 
 
 def load_config[ConfigType](

@@ -70,7 +70,7 @@ async def mes_input_handler(
             timestamp=datetime.now(UTC).timestamp(),
             message_id=message.message_id,
             has_photo=False,
-            photo_url=None,
+            photo_file_id=None,
             chat_id=message.chat.id,
         )
 
