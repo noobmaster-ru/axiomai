@@ -75,12 +75,12 @@ class Payment(Base):
     )
 
     # кто платил
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     email: Mapped[str | None] = mapped_column(String(256), comment="E-mail покупателя (для чеков/уведомлений)")
 
     # к какой таблице кэшбека относится платёж (через table_id)
     cashback_table_id: Mapped[int | None] = mapped_column(
-        ForeignKey("cashback_tables.id"), comment="Если привязываем напрямую к cashback_tables"
+        ForeignKey("cashback_tables.id"), index=True, comment="Если привязываем напрямую к cashback_tables"
     )
 
     amount: Mapped[int] = mapped_column(

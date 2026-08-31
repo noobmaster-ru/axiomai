@@ -13,7 +13,11 @@ target_metadata = Base.metadata
 
 sqlalchemy_url = config.get_main_option("sqlalchemy.url")
 if sqlalchemy_url is None:
-    config.set_main_option("sqlalchemy.url", os.getenv("POSTGRES_URL"))
+    postgres_url = os.getenv("POSTGRES_URL")
+    if not postgres_url:
+        raise RuntimeError("POSTGRES_URL is not set: alembic needs it to connect to the database")
+    # ConfigParser интерполирует %, экранируем на случай пароля со спецсимволами
+    config.set_main_option("sqlalchemy.url", postgres_url.replace("%", "%%"))
 
 
 def run_migrations_offline() -> None:
@@ -41,7 +45,11 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+    )
 
     with context.begin_transaction():
         context.run_migrations()

@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import TIMESTAMP, BigInteger, ForeignKey, String, func
+from sqlalchemy import TIMESTAMP, BigInteger, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,15 +16,17 @@ class Buyer(Base):
     """
 
     __tablename__ = "buyers"
+    # Поиск активных заявок по (telegram_id, cabinet_id) выполняется на каждое входящее сообщение клиента
+    __table_args__ = (Index("ix_buyers_telegram_id_cabinet_id", "telegram_id", "cabinet_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    cabinet_id: Mapped[int] = mapped_column(ForeignKey("cabinets.id"), comment="Кабинет продавца")
+    cabinet_id: Mapped[int] = mapped_column(ForeignKey("cabinets.id"), index=True, comment="Кабинет продавца")
 
     username: Mapped[str | None] = mapped_column(String(256), comment="Телеграм username (без @)")
     fullname: Mapped[str] = mapped_column(String(512), comment="Полное имя пользователя в телеграме")
     telegram_id: Mapped[int] = mapped_column(BigInteger, comment="Телеграм ID покупателя")
-    nm_id: Mapped[int] = mapped_column(comment="Артикул товара")
+    nm_id: Mapped[int] = mapped_column(index=True, comment="Артикул товара")
 
     is_ordered: Mapped[bool] = mapped_column(default=False, comment="Скриншот заказа принят")
     is_left_feedback: Mapped[bool] = mapped_column(default=False, comment="Скриншот отзыва принят")

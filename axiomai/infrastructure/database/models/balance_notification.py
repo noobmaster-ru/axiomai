@@ -1,7 +1,7 @@
 import datetime
 from decimal import Decimal
 
-from sqlalchemy import TIMESTAMP, ForeignKey, Numeric, func
+from sqlalchemy import TIMESTAMP, ForeignKey, Numeric, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from axiomai.infrastructure.database.models.base import Base
@@ -15,6 +15,10 @@ class BalanceNotification(Base):
     """
 
     __tablename__ = "balance_notifications"
+    # Идемпотентность: одно уведомление на порог в рамках одного цикла пополнения
+    __table_args__ = (
+        UniqueConstraint("cabinet_id", "initial_balance", "threshold", name="uq_balance_notifications_cycle_threshold"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     cabinet_id: Mapped[int] = mapped_column(ForeignKey("cabinets.id"), index=True)

@@ -56,13 +56,15 @@ class ObserveBalanceNotifications:
                         initial_balance=cabinet.initial_balance,
                         threshold=threshold,
                     )
-                    await self._transaction_manager.commit()
 
+                    # Сначала отправляем, потом фиксируем: упавшая отправка не должна
+                    # навсегда заглушить алерт (редкий дубль при сбое коммита допустим)
                     await self._send_notification(user.telegram_id, cabinet.balance)
                     if user.telegram_id != self._owner_telegram_id:
                         await self._send_notification(
                             self._owner_telegram_id, cabinet.balance, seller_telegram_id=user.telegram_id
                         )
+                    await self._transaction_manager.commit()
                     logger.info("sent balance notification for cabinet_id=%s, threshold=%s", cabinet.id, threshold)
 
     async def _send_notification(self, telegram_id: int, balance: int, seller_telegram_id: int | None = None) -> None:
