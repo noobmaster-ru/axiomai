@@ -4,7 +4,7 @@ import re
 from contextlib import suppress
 from typing import TypedDict
 
-from httpx import AsyncClient, AsyncHTTPTransport
+from httpx import AsyncClient, Timeout
 from openai import AsyncOpenAI
 from openai.types.responses import Response
 
@@ -63,7 +63,10 @@ class OpenAIGateway:
     def __init__(self, config: OpenAIConfig) -> None:
         self._client = AsyncOpenAI(
             api_key=config.openai_api_key,
-            http_client=AsyncClient(proxy=config.proxy, transport=AsyncHTTPTransport(local_address="0.0.0.0")),
+            # без явного timeout SDK ждёт ответ до 600 секунд
+            timeout=Timeout(300.0, connect=5.0),
+            max_retries=2,
+            http_client=AsyncClient(proxy=config.proxy),
         )
 
     async def classify_order_screenshot(
