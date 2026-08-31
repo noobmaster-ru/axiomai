@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from axiomai.api.auth import AuthenticatedTelegramId
 from axiomai.api.schemas import BuyerResponse, CreateBuyerRequest, CreatePaymentRequest
 from axiomai.application.exceptions.buyer import BuyerNotFoundError
+from axiomai.application.exceptions.cashback_table import CashbackArticleNotFoundError
 from axiomai.application.interactors.create_buyer import CreateBuyer
 from axiomai.application.interactors.create_superbanking_payment import CreateSuperbankingPayment
 from axiomai.application.interactors.update_buyer_screenshot import ScreenshotType, UpdateBuyerScreenshot
@@ -28,12 +29,15 @@ async def create_buyer(
     telegram_id: AuthenticatedTelegramId,
     create_buyer_interactor: FromDishka[CreateBuyer],
 ) -> BuyerResponse:
-    buyer = await create_buyer_interactor.execute(
-        telegram_id=telegram_id,
-        username=body.username,
-        fullname=body.fullname,
-        article_id=body.article_id,
-    )
+    try:
+        buyer = await create_buyer_interactor.execute(
+            telegram_id=telegram_id,
+            username=body.username,
+            fullname=body.fullname,
+            article_id=body.article_id,
+        )
+    except CashbackArticleNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return BuyerResponse.model_validate(buyer)
 
 
@@ -59,7 +63,7 @@ async def upload_order_screenshot(
     await _get_own_buyer(buyer_gateway, buyer_id, telegram_id)
     try:
         buyer = await update_screenshot.execute(buyer_id, ScreenshotType.ORDER)
-    except ValueError as e:
+    except BuyerNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     return BuyerResponse.model_validate(buyer)
 
@@ -75,7 +79,7 @@ async def upload_feedback_screenshot(
     await _get_own_buyer(buyer_gateway, buyer_id, telegram_id)
     try:
         buyer = await update_screenshot.execute(buyer_id, ScreenshotType.FEEDBACK)
-    except ValueError as e:
+    except BuyerNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     return BuyerResponse.model_validate(buyer)
 
@@ -91,7 +95,7 @@ async def upload_cut_labels_screenshot(
     await _get_own_buyer(buyer_gateway, buyer_id, telegram_id)
     try:
         buyer = await update_screenshot.execute(buyer_id, ScreenshotType.CUT_LABELS)
-    except ValueError as e:
+    except BuyerNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     return BuyerResponse.model_validate(buyer)
 

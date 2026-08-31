@@ -41,7 +41,7 @@ class Config(BaseModel):
     api_auth_dev_telegram_id: int | None = Field(alias="API_AUTH_DEV_TELEGRAM_ID", default=None)
 
     message_debouncer: MessageDebouncerConfig = Field(default_factory=lambda: MessageDebouncerConfig(**environ))
-    superbankink_config: SuperbankingConfig = Field(default_factory=lambda: SuperbankingConfig(**environ))
+    superbanking_config: SuperbankingConfig = Field(default_factory=lambda: SuperbankingConfig(**environ))
     openai_config: OpenAIConfig = Field(default_factory=lambda: OpenAIConfig(**environ))
 
     @field_validator("admin_telegram_ids", mode="before")

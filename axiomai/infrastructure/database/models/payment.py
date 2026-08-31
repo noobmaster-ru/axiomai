@@ -84,7 +84,7 @@ class Payment(Base):
     )
 
     amount: Mapped[int] = mapped_column(
-        comment="Сумма платежа в базовой валюте (например, в рублях или копейках — на твой выбор)"
+        comment="Сумма платежа в рублях (целые рубли, как и Cabinet.balance)"
     )
 
     status: Mapped[PaymentStatus] = mapped_column(

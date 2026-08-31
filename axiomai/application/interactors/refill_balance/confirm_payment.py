@@ -6,13 +6,12 @@ from axiomai.application.exceptions.cabinet import CabinetNotFoundError
 from axiomai.application.exceptions.payment import (
     PaymentAlreadyProcessedError,
     PaymentNotFoundError,
-    PaymentTypeMismatchError,
 )
+from axiomai.application.interactors.payment_common import ensure_refill_balance_payment
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
-from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.gateways.payment import PaymentGateway
 from axiomai.infrastructure.database.gateways.user import UserGateway
-from axiomai.infrastructure.database.models.payment import SERVICE_DATA_TYPE_REFILL_BALANCE, PaymentStatus
+from axiomai.infrastructure.database.models.payment import PaymentStatus
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
 from axiomai.infrastructure.telegram.keyboards.reply import get_kb_menu
 
@@ -25,14 +24,12 @@ class ConfirmRefillBalancePayment:
         tm: TransactionManager,
         payment_gateway: PaymentGateway,
         cabinet_gateway: CabinetGateway,
-        cashback_table_gateway: CashbackTableGateway,
         user_gateway: UserGateway,
         bot: Bot,
     ) -> None:
         self._tm = tm
         self._payment_gateway = payment_gateway
         self._cabinet_gateway = cabinet_gateway
-        self._cashback_table_gateway = cashback_table_gateway
         self._user_gateway = user_gateway
         self._bot = bot
 
@@ -41,7 +38,7 @@ class ConfirmRefillBalancePayment:
         if not payment:
             raise PaymentNotFoundError(f"Payment with id {payment_id} not found")
 
-        _ensure_refill_balance_payment(payment_id, payment.service_data)
+        ensure_refill_balance_payment(payment_id, payment.service_data)
 
         cabinet_id = payment.service_data.get("service_id")
         cabinet = await self._cabinet_gateway.get_cabinet_by_id(cabinet_id) if cabinet_id else None
@@ -70,12 +67,3 @@ class ConfirmRefillBalancePayment:
                 "Теперь боту снова можно принимать заявки от клиентов."
             )
             await self._bot.send_message(chat_id=user.telegram_id, text=text, reply_markup=get_kb_menu(cabinet))
-
-
-def _ensure_refill_balance_payment(payment_id: int, service_data: dict) -> None:
-    """Платёж без type — легаси-пополнение; буст-платёж (type или "leads") сюда попадать не должен."""
-    payment_type = service_data.get("type")
-    if payment_type not in (None, SERVICE_DATA_TYPE_REFILL_BALANCE) or "leads" in service_data:
-        raise PaymentTypeMismatchError(
-            f"Payment {payment_id} is not a refill-balance payment (type={payment_type!r})"
-        )

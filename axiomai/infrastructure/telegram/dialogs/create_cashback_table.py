@@ -9,7 +9,7 @@ from aiogram_dialog.widgets.text import Const
 from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 
-from axiomai.application.exceptions.cashback_table import CashbackTableAlredyExistsError
+from axiomai.application.exceptions.cashback_table import CashbackTableAlreadyExistsError
 from axiomai.application.interactors.create_cashback_table import CreateCashbackTable
 from axiomai.config import Config
 from axiomai.constants import GOOGLE_SHEETS_TEMPLATE_URL
@@ -49,7 +49,7 @@ async def input_gs_link(
 
     try:
         await create_cashback_table.execute(message.from_user.id, table_id)
-    except CashbackTableAlredyExistsError:
+    except CashbackTableAlreadyExistsError:
         await message.answer("Таблица с такими данными уже существует в нашей системе.")
         dialog_manager.show_mode = ShowMode.NO_UPDATE
         return

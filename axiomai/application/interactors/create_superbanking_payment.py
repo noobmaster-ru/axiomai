@@ -6,6 +6,7 @@ from aiogram.types import URLInputFile
 from dishka import AsyncContainer
 
 from axiomai.application.exceptions.buyer import BuyerNotFoundError
+from axiomai.application.exceptions.cabinet import CabinetNotFoundError
 from axiomai.application.exceptions.payment import NotEnoughBalanceError
 from axiomai.application.exceptions.superbanking import (
     CreatePaymentError,
@@ -62,7 +63,7 @@ class CreateSuperbankingPayment:
     ) -> str:
         cabinet = await self._cabinet_gateway.get_cabinet_by_id(cabinet_id)
         if not cabinet:
-            raise ValueError(f"Cabinet with id {cabinet_id} not found")
+            raise CabinetNotFoundError(f"Cabinet with id {cabinet_id} not found")
 
         buyers = await self._buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(telegram_id, cabinet_id)
         if not buyers:

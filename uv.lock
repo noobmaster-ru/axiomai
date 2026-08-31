@@ -235,7 +235,6 @@ dependencies = [
     { name = "alembic" },
     { name = "dishka" },
     { name = "fastapi" },
-    { name = "isort" },
     { name = "openai" },
     { name = "psycopg" },
     { name = "psycopg-binary" },
@@ -247,6 +246,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "greenlet" },
+    { name = "isort" },
     { name = "mimesis" },
     { name = "mypy" },
     { name = "pytest" },
@@ -265,7 +265,6 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.18.1" },
     { name = "dishka", specifier = ">=1.7.2" },
     { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "isort", specifier = ">=7.0.0" },
     { name = "openai", specifier = ">=2.15.0" },
     { name = "psycopg", specifier = ">=3.3.2" },
     { name = "psycopg-binary", specifier = ">=3.3.2" },
@@ -277,6 +276,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "greenlet", specifier = ">=3.3.1" },
+    { name = "isort", specifier = ">=7.0.0" },
     { name = "mimesis", specifier = ">=19.1.0" },
     { name = "mypy", specifier = ">=1.19.1" },
     { name = "pytest", specifier = ">=9.0.2" },

@@ -68,8 +68,8 @@ class ConfigProvider(Provider):
         return config.message_debouncer
 
     @provide(scope=Scope.APP)
-    def superbankink_config(self, config: Config) -> SuperbankingConfig:
-        return config.superbankink_config
+    def superbanking_config(self, config: Config) -> SuperbankingConfig:
+        return config.superbanking_config
 
     @provide(scope=Scope.APP)
     def openai_config(self, config: Config) -> OpenAIConfig:
