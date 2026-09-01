@@ -1,0 +1,53 @@
+# Запуск на сервере с managed Postgres/Redis (Timeweb): свои контейнеры БД не поднимаются,
+# подключение к managed-сервисам идёт по адресам из .env (POSTGRES_URL / REDIS_URL, TLS через ca.crt)
+services:
+  tgbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: axiomai.tgbot
+    env_file:
+      - ".env"
+    volumes:
+      - ./assets:/app/assets
+      - ./${SERVICE_ACCOUNT_AXIOMAI}:/app/${SERVICE_ACCOUNT_AXIOMAI}:ro
+      - ./ca.crt:/app/ca.crt:ro
+    restart: unless-stopped
+    command: "python -m axiomai.tgbot"
+
+  observer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: axiomai.observer
+    env_file:
+      - ".env"
+    volumes:
+      - ./${SERVICE_ACCOUNT_AXIOMAI}:/app/${SERVICE_ACCOUNT_AXIOMAI}:ro
+      - ./ca.crt:/app/ca.crt:ro
+    restart: unless-stopped
+    command: "python -m axiomai.observer"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: axiomai.api
+    env_file:
+      - ".env"
+    volumes:
+      - ./assets:/app/assets
+      - ./ca.crt:/app/ca.crt:ro
+    restart: unless-stopped
+    command: "python -m axiomai.api"
+
+  postgres_migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: axiomai.postgres.migration
+    env_file:
+      - ".env"
+    volumes:
+      - ./ca.crt:/app/ca.crt:ro
+    command: "alembic upgrade head"

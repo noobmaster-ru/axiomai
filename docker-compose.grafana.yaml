@@ -4,7 +4,7 @@ services:
     image: grafana/loki:3.3.2
     restart: unless-stopped
     ports:
-      - "3101:3100"
+      - "127.0.0.1:3101:3100"  # только localhost: наружу Loki не нужен
     command: -config.file=/etc/loki/local-config.yaml
   vector:
     container_name: axiomai.vector.prod
@@ -28,7 +28,7 @@ services:
     depends_on:
       - loki
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
 
 volumes:

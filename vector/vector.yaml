@@ -2,12 +2,12 @@ sources:
   docker_logs:
     type: docker_logs
     docker_host: /var/run/docker.sock
-    include_containers:
-      - axiomai.tgbot.prod
-      - axiomai.observer.prod
-      - axiomai.postgres.migration.prod
-      - axiomai.api.prod
-      - axiomai.frontend.prod
+    include_containers:  # префиксы: матчат axiomai.tgbot, axiomai.tgbot.prod и т.п.
+      - axiomai.tgbot
+      - axiomai.observer
+      - axiomai.postgres.migration
+      - axiomai.api
+      - axiomai.frontend
 
 transforms:
   parse_json:

@@ -3,6 +3,7 @@ import logging
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from dishka import AsyncContainer, make_async_container
 
@@ -60,7 +61,8 @@ async def run_inactive_reminders_observer(di_container: AsyncContainer) -> None:
 async def main() -> None:
     config = load_config()
     setup_logging(json_logs=config.json_logs)
-    bot = Bot(token=config.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    session = AiohttpSession(proxy=config.telegram_proxy or None)
+    bot = Bot(token=config.bot_token, session=session, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     di_container = make_async_container(
         DatabaseProvider(),
         ObserverInteractorsProvider(),
