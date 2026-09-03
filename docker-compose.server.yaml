@@ -51,3 +51,12 @@ services:
     volumes:
       - ./ca.crt:/app/ca.crt:ro
     command: "alembic upgrade head"
+
+networks:
+  # IPv6 нужен контейнерам для прямого доступа к Telegram API: провайдер сервера
+  # блокирует telegram по IPv4, а по IPv6 он доступен без прокси
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd0a:a10a:1::/64

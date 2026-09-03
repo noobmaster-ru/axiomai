@@ -31,5 +31,24 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
 
+  metrics:
+    container_name: axiomai.metrics
+    # Зеркало ECR вместо Docker Hub: серверный IP упирается в rate limit registry-1.docker.io
+    image: public.ecr.aws/docker/library/docker:cli
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/host:ro
+      - ./metrics/collect.sh:/collect.sh:ro
+    command: sh /collect.sh
+
 volumes:
   grafana-data:
+
+networks:
+  # Должно совпадать с docker-compose.server.yaml — оба файла делят одну compose-сеть
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd0a:a10a:1::/64

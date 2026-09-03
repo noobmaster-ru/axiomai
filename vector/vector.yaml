@@ -8,6 +8,7 @@ sources:
       - axiomai.postgres.migration
       - axiomai.api
       - axiomai.frontend
+      - axiomai.metrics
 
 transforms:
   parse_json:
