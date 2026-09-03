@@ -1,14 +1,11 @@
-"""Юниты на KieGateway: загрузка фото, построение messages, парсеры маркеров."""
+"""Юниты на KieGateway: построение messages с data URL, парсеры маркеров."""
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 from axiomai.config import KieConfig
 from axiomai.infrastructure.kie import (
     KieGateway,
-    KieUploadError,
     _parse_answer_result,
     _parse_predialog_result,
 )
@@ -38,69 +35,18 @@ def _completion(text: str | None) -> MagicMock:
     return completion
 
 
-def _upload_response(status_code: int = 200, payload: dict | None = None) -> MagicMock:
-    response = MagicMock()
-    response.status_code = status_code
-    response.text = str(payload)
-    response.json.return_value = payload or {}
-    return response
-
-
-# --- _upload_photo ---
-
-
-async def test_upload_photo_returns_download_url():
-    gateway = _make_gateway()
-    gateway._upload_client.post = AsyncMock(
-        return_value=_upload_response(
-            payload={"success": True, "data": {"downloadUrl": "https://tempfile.example/img.jpg"}}
-        )
-    )
-
-    url = await gateway._upload_photo(DATA_URL)
-
-    assert url == "https://tempfile.example/img.jpg"
-    sent = gateway._upload_client.post.await_args
-    assert sent.kwargs["json"]["base64Data"] == DATA_URL
-    assert sent.kwargs["headers"]["Authorization"] == "Bearer test-key"
-
-
-async def test_upload_photo_skips_plain_urls():
-    gateway = _make_gateway()
-    gateway._upload_client.post = AsyncMock()
-
-    url = await gateway._upload_photo("https://already.url/img.jpg")
-
-    assert url == "https://already.url/img.jpg"
-    gateway._upload_client.post.assert_not_awaited()
-
-
-async def test_upload_photo_raises_on_http_error():
-    gateway = _make_gateway()
-    gateway._upload_client.post = AsyncMock(return_value=_upload_response(status_code=500, payload={}))
-
-    with pytest.raises(KieUploadError):
-        await gateway._upload_photo(DATA_URL)
-
-
-async def test_upload_photo_raises_without_download_url():
-    gateway = _make_gateway()
-    gateway._upload_client.post = AsyncMock(return_value=_upload_response(payload={"success": True, "data": {}}))
-
-    with pytest.raises(KieUploadError):
-        await gateway._upload_photo(DATA_URL)
-
-
-# --- messages: фото уходит внешним URL, картинки артикулов добавляются ---
-
-
-async def test_classify_order_uploads_photo_and_builds_chat_messages():
-    gateway = _make_gateway()
-    gateway._upload_client.post = AsyncMock(
-        return_value=_upload_response(payload={"success": True, "data": {"downloadUrl": "https://tempfile.example/x.jpg"}})
-    )
-    create = AsyncMock(return_value=_completion('{"is_order": true, "orders": [{"nm_id": 777, "price": 250}], "cancel_reason": null}'))
+def _mock_create(gateway: KieGateway, text: str | None) -> AsyncMock:
+    create = AsyncMock(return_value=_completion(text))
     gateway._client = MagicMock(chat=MagicMock(completions=MagicMock(create=create)))
+    return create
+
+
+# --- построение messages ---
+
+
+async def test_classify_order_sends_data_url_and_article_images():
+    gateway = _make_gateway()
+    create = _mock_create(gateway, '{"is_order": true, "orders": [{"nm_id": 777, "price": 250}], "cancel_reason": null}')
 
     result = await gateway.classify_order_screenshot(DATA_URL, [_make_article()])
 
@@ -109,16 +55,15 @@ async def test_classify_order_uploads_photo_and_builds_chat_messages():
     kwargs = create.await_args.kwargs
     user_content = kwargs["messages"][1]["content"]
     image_urls = [part["image_url"]["url"] for part in user_content if part["type"] == "image_url"]
-    # первым идёт загруженный скриншот, затем эталонное фото артикула
-    assert image_urls == ["https://tempfile.example/x.jpg", "https://wb.example.com/art.jpg"]
+    # первым идёт скриншот клиента (data URL без промежуточной загрузки), затем эталонное фото артикула
+    assert image_urls == [DATA_URL, "https://wb.example.com/art.jpg"]
     assert kwargs["reasoning_effort"] == "high"
+    assert kwargs["model"]
 
 
 async def test_classify_order_filters_foreign_nm_ids():
     gateway = _make_gateway()
-    gateway._upload_photo = AsyncMock(return_value="https://tempfile.example/x.jpg")
-    create = AsyncMock(return_value=_completion('{"is_order": true, "orders": [{"nm_id": 999, "price": 100}], "cancel_reason": null}'))
-    gateway._client = MagicMock(chat=MagicMock(completions=MagicMock(create=create)))
+    _mock_create(gateway, '{"is_order": true, "orders": [{"nm_id": 999, "price": 100}], "cancel_reason": null}')
 
     result = await gateway.classify_order_screenshot(DATA_URL, [_make_article(nm_id=777)])
 
@@ -126,24 +71,41 @@ async def test_classify_order_filters_foreign_nm_ids():
     assert result["orders"] == []
 
 
+async def test_classify_feedback_filters_foreign_nm_ids():
+    gateway = _make_gateway()
+    _mock_create(gateway, '{"is_feedback": true, "nm_ids": [999], "cancel_reason": null}')
+
+    result = await gateway.classify_feedback_screenshot(DATA_URL, [_make_article(nm_id=777)])
+
+    assert result["is_feedback"] is False
+    assert result["nm_ids"] == []
+
+
 async def test_chat_with_client_without_photo_sends_plain_text():
     gateway = _make_gateway()
-    gateway._upload_photo = AsyncMock()
-    create = AsyncMock(return_value=_completion("[ARTICLE:1] Отлично, оформляем"))
-    gateway._client = MagicMock(chat=MagicMock(completions=MagicMock(create=create)))
+    create = _mock_create(gateway, "[ARTICLE:1] Отлично, оформляем")
 
     result = await gateway.chat_with_client("ролик", [_make_article(article_id=1)])
 
     assert result["article_ids"] == [1]
     assert result["response"] == "Отлично, оформляем"
-    gateway._upload_photo.assert_not_awaited()
     assert isinstance(create.await_args.kwargs["messages"][1]["content"], str)
+    assert create.await_args.kwargs["reasoning_effort"] == "low"
+
+
+async def test_chat_with_client_with_photo_attaches_data_url():
+    gateway = _make_gateway()
+    create = _mock_create(gateway, "Вижу фото")
+
+    await gateway.chat_with_client("что это?", [_make_article()], photo_data_url=DATA_URL)
+
+    user_content = create.await_args.kwargs["messages"][1]["content"]
+    assert {"type": "image_url", "image_url": {"url": DATA_URL}} in user_content
 
 
 async def test_chat_with_client_filters_unknown_article_ids():
     gateway = _make_gateway()
-    create = AsyncMock(return_value=_completion("[ARTICLE:1,42] Выбор сделан"))
-    gateway._client = MagicMock(chat=MagicMock(completions=MagicMock(create=create)))
+    _mock_create(gateway, "[ARTICLE:1,42] Выбор сделан")
 
     result = await gateway.chat_with_client("ролик и губка", [_make_article(article_id=1)])
 
@@ -152,9 +114,7 @@ async def test_chat_with_client_filters_unknown_article_ids():
 
 async def test_empty_completion_gives_safe_defaults():
     gateway = _make_gateway()
-    gateway._upload_photo = AsyncMock(return_value="https://tempfile.example/x.jpg")
-    create = AsyncMock(return_value=_completion(None))
-    gateway._client = MagicMock(chat=MagicMock(completions=MagicMock(create=create)))
+    _mock_create(gateway, None)
 
     result = await gateway.classify_cut_labels_photo(DATA_URL, [_make_article()])
 

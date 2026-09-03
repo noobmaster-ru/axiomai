@@ -2,8 +2,8 @@
 
 kie.ai — реселлер: endpoint `{KIE_BASE_URL}/chat/completions` принимает стандартный
 формат messages/choices, поэтому клиентом служит официальный openai SDK с другим base_url.
-Особенность vision: изображения передаются только внешними URL, поэтому base64 data URL
-от хендлеров сначала загружается через File Upload API kie.ai (временное хранение ~3 дня).
+Vision: несмотря на доки («только URL»), endpoint принимает base64 data URL напрямую
+(проверено вживую) — фото клиентов уходят в модель без промежуточной загрузки на CDN.
 """
 
 import json
@@ -22,7 +22,6 @@ from axiomai.constants import (
     GPT_MAX_OUTPUT_TOKENS_PHOTO_ANALYSIS,
     GPT_REASONING,
     KIE_BASE_URL,
-    KIE_FILE_UPLOAD_URL,
     MODEL_NAME,
 )
 from axiomai.infrastructure.database.models import Buyer
@@ -71,10 +70,6 @@ class PredialogResult(TypedDict):
     wants_manager: bool
 
 
-class KieUploadError(Exception):
-    """Не удалось загрузить изображение в файловое хранилище kie.ai."""
-
-
 def _text(text: str) -> dict[str, Any]:
     return {"type": "text", "text": text}
 
@@ -85,7 +80,6 @@ def _image(url: str) -> dict[str, Any]:
 
 class KieGateway:
     def __init__(self, config: KieConfig) -> None:
-        self._api_key = config.kie_api_key
         self._client = AsyncOpenAI(
             api_key=config.kie_api_key,
             base_url=KIE_BASE_URL,
@@ -93,27 +87,6 @@ class KieGateway:
             timeout=httpx.Timeout(300.0, connect=5.0),
             max_retries=2,
         )
-        # Отдельный клиент для File Upload API (не OpenAI-совместимая часть kie.ai)
-        self._upload_client = httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=5.0))
-
-    async def _upload_photo(self, photo_data_url: str) -> str:
-        """Меняет base64 data URL на внешний URL: chat-endpoint kie.ai принимает только URL."""
-        if photo_data_url.startswith(("http://", "https://")):
-            return photo_data_url
-
-        response = await self._upload_client.post(
-            KIE_FILE_UPLOAD_URL,
-            headers={"Authorization": f"Bearer {self._api_key}"},
-            json={"base64Data": photo_data_url, "uploadPath": "axiomai/screenshots"},
-        )
-        if response.status_code != httpx.codes.OK:
-            raise KieUploadError(f"kie.ai file upload failed: status={response.status_code}, body={response.text[:300]}")
-
-        payload = response.json()
-        download_url = (payload.get("data") or {}).get("downloadUrl")
-        if not payload.get("success") or not download_url:
-            raise KieUploadError(f"kie.ai file upload returned no downloadUrl: {str(payload)[:300]}")
-        return download_url
 
     async def _create_completion(
         self,
@@ -176,8 +149,7 @@ class KieGateway:
         {first_instruction}
         """
 
-        photo_url = await self._upload_photo(photo_data_url)
-        user_content = [_text(prompt), _image(photo_url)]
+        user_content = [_text(prompt), _image(photo_data_url)]
         for art in articles:
             if art.image_url:
                 user_content.append(_image(art.image_url))
@@ -254,8 +226,7 @@ class KieGateway:
         {first_instruction}
         """
 
-        photo_url = await self._upload_photo(photo_data_url)
-        user_content = [_text(prompt), _image(photo_url)]
+        user_content = [_text(prompt), _image(photo_data_url)]
         for art in articles:
             if art.image_url:
                 user_content.append(_image(art.image_url))
@@ -309,10 +280,9 @@ class KieGateway:
         {first_instruction}
         """
 
-        photo_url = await self._upload_photo(photo_data_url)
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": system_content},
-            {"role": "user", "content": [_text(prompt), _image(photo_url)]},
+            {"role": "user", "content": [_text(prompt), _image(photo_data_url)]},
         ]
 
         result = await self._create_completion(
@@ -499,11 +469,7 @@ class KieGateway:
         """
 
         user_content: list[dict[str, Any]] | str
-        if photo_data_url:
-            photo_url = await self._upload_photo(photo_data_url)
-            user_content = [_text(prompt), _image(photo_url)]
-        else:
-            user_content = prompt
+        user_content = [_text(prompt), _image(photo_data_url)] if photo_data_url else prompt
 
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": system_content},
