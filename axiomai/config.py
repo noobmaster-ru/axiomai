@@ -20,6 +20,15 @@ class KieConfig(BaseModel):
     kie_api_key: str = Field(alias="KIE_API_KEY")
 
 
+class OpenAIConfig(BaseModel):
+    """ЛЕГАСИ: конфиг официального OpenAI API. Используется только infrastructure/openai.py
+    (запасной гейтвей, сейчас не подключён — см. его докстринг).
+    """
+
+    openai_api_key: str = Field(alias="OPENAI_TOKEN")
+    proxy: str = Field(alias="PROXY")
+
+
 class Config(BaseModel):
     postgres_uri: str = Field(alias="POSTGRES_URL")
     redis_uri: str = Field(alias="REDIS_URL")
