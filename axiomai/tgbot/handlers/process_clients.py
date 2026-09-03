@@ -22,8 +22,8 @@ from axiomai.infrastructure.chat_history import (
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
+from axiomai.infrastructure.kie import KieGateway
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, merge_messages_text
-from axiomai.infrastructure.openai import OpenAIGateway
 from axiomai.infrastructure.telegram.common import telegram_photo_to_data_url
 from axiomai.infrastructure.telegram.dialogs.cashback_article.common import determine_resume_state
 from axiomai.infrastructure.telegram.dialogs.states import CashbackArticleStates
@@ -134,7 +134,7 @@ async def _process_accumulated_messages(
     async with di_container() as r_container:
         config = await r_container.get(Config)
         cashback_table_gateway = await r_container.get(CashbackTableGateway)
-        openai_gateway = await r_container.get(OpenAIGateway)
+        openai_gateway = await r_container.get(KieGateway)
         redis = await r_container.get(Redis)
 
         cashback_table = await cashback_table_gateway.get_active_cashback_table_by_business_connection_id(

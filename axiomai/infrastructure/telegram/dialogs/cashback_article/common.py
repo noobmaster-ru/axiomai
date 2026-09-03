@@ -18,8 +18,8 @@ from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.models import Buyer
+from axiomai.infrastructure.kie import KieGateway
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, merge_messages_text
-from axiomai.infrastructure.openai import OpenAIGateway
 from axiomai.infrastructure.telegram.dialogs.states import CashbackArticleStates
 from axiomai.infrastructure.telegram.keyboards.inline import build_manager_handled_keyboard
 
@@ -103,7 +103,7 @@ async def _process_dialog_messages(
 ) -> None:
     async with di_container() as r_container:
         config = await r_container.get(Config)
-        openai_gateway = await r_container.get(OpenAIGateway)
+        openai_gateway = await r_container.get(KieGateway)
         cashback_table_gateway = await r_container.get(CashbackTableGateway)
         cabinet_gateway = await r_container.get(CabinetGateway)
         buyer_gateway = await r_container.get(BuyerGateway)

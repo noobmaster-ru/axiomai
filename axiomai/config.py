@@ -16,9 +16,8 @@ class MessageDebouncerConfig(BaseModel):
     immediate_processing_length: int = Field(alias="IMMEDIATE_PROCESSING_LENGTH", default=500)
 
 
-class OpenAIConfig(BaseModel):
-    openai_api_key: str = Field(alias="OPENAI_TOKEN")
-    proxy: str = Field(alias="PROXY")
+class KieConfig(BaseModel):
+    kie_api_key: str = Field(alias="KIE_API_KEY")
 
 
 class Config(BaseModel):
@@ -42,7 +41,7 @@ class Config(BaseModel):
 
     message_debouncer: MessageDebouncerConfig = Field(default_factory=lambda: MessageDebouncerConfig(**environ))
     superbanking_config: SuperbankingConfig = Field(default_factory=lambda: SuperbankingConfig(**environ))
-    openai_config: OpenAIConfig = Field(default_factory=lambda: OpenAIConfig(**environ))
+    kie_config: KieConfig = Field(default_factory=lambda: KieConfig(**environ))
 
     @field_validator("admin_telegram_ids", mode="before")
     @classmethod

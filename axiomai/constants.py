@@ -39,10 +39,12 @@ AMOUNT_PATTERN = re.compile(
 )
 CARD_CLEAN_RE = re.compile(r"[ -]")
 
-# OpenAI API
-MODEL_NAME = "gpt-5.2"
+# kie.ai (OpenAI-совместимый API, https://docs.kie.ai)
+KIE_BASE_URL = "https://api.kie.ai/gpt-5-2/v1"
+KIE_FILE_UPLOAD_URL = "https://api.kie.ai/api/file-base64-upload"
+MODEL_NAME = "gpt-5-2"  # нейминг модели у kie.ai
 GPT_MAX_OUTPUT_TOKENS = 100
 GPT_MAX_OUTPUT_TOKENS_PHOTO_ANALYSIS = 800
-GPT_REASONING = "high"  # "low" | "medium" | "high"
+GPT_REASONING = "high"  # "low" | "high"
 
 MAX_PHOTO_INPUT_ERRORS = 2

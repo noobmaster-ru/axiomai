@@ -19,8 +19,8 @@ from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
+from axiomai.infrastructure.kie import ClassifyFeedbackResult, KieGateway
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, TaskStrategy
-from axiomai.infrastructure.openai import ClassifyFeedbackResult, OpenAIGateway
 from axiomai.infrastructure.telegram.common import telegram_photo_to_data_url
 from axiomai.infrastructure.telegram.dialogs.cashback_article.common import (
     get_and_increment_photo_error_count,
@@ -37,7 +37,7 @@ async def on_input_feedback_screenshot(
     message: Message,
     widget: MessageInput,
     dialog_manager: DialogManager,
-    openai_gateway: FromDishka[OpenAIGateway],
+    openai_gateway: FromDishka[KieGateway],
     di_container: FromDishka[AsyncContainer],
     message_debouncer: FromDishka[MessageDebouncer],
     config: FromDishka[Config],
@@ -88,7 +88,7 @@ async def _process_feedback_screenshot_background(  # noqa: C901, PLR0915
     bot: Bot,
     bg_manager: DialogManager,
     di_container: AsyncContainer,
-    openai_gateway: OpenAIGateway,
+    openai_gateway: KieGateway,
     config: Config,
     chat_id: int,
     business_connection_id: str,
