@@ -21,7 +21,7 @@ from axiomai.infrastructure.database.gateways.cashback_table_gateway import Cash
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
 from axiomai.infrastructure.kie import ClassifyOrderResult, KieGateway
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, TaskStrategy
-from axiomai.infrastructure.telegram.common import telegram_photo_to_data_url
+from axiomai.infrastructure.telegram.common import mark_business_message_read, telegram_photo_to_data_url
 from axiomai.infrastructure.telegram.dialogs.cashback_article.common import (
     get_and_increment_photo_error_count,
     get_pending_nm_ids_for_step,
@@ -44,9 +44,8 @@ async def on_input_order_screenshot(
 ) -> None:
     bot: Bot = dialog_manager.middleware_data["bot"]
 
-    await bot.read_business_message(message.business_connection_id, message.chat.id, message.message_id)
-
     if not message.photo:
+        await mark_business_message_read(bot, message.business_connection_id, message.chat.id, message.message_id)
         await message.answer("Пожалуйста, отправьте фото скриншота заказа")
         return
 
@@ -95,6 +94,9 @@ async def _process_order_screenshot_background(  # noqa: PLR0912, PLR0915, C901
     username: str | None = None,
     fullname: str = "",
 ) -> None:
+    # Отложенное прочтение: помечаем прочитанным только перед ответом, а не в момент получения
+    await mark_business_message_read(bot, business_connection_id, chat_id, max(m.message_id for m in messages))
+
     photo_file_ids = [msg.photo_file_id for msg in messages if msg.photo_file_id]
 
     if len(photo_file_ids) > 1:

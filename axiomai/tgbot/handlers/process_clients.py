@@ -24,7 +24,7 @@ from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.kie import KieGateway
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, merge_messages_text
-from axiomai.infrastructure.telegram.common import telegram_photo_to_data_url
+from axiomai.infrastructure.telegram.common import mark_business_message_read, telegram_photo_to_data_url
 from axiomai.infrastructure.telegram.dialogs.cashback_article.common import determine_resume_state
 from axiomai.infrastructure.telegram.dialogs.states import CashbackArticleStates
 from axiomai.infrastructure.telegram.keyboards.inline import build_manager_handled_keyboard
@@ -62,8 +62,6 @@ async def process_clients_business_message(
         logger.info("skip message from chat %s due to zero leads balance for cabinet %s", message.chat.id, cabinet.id)
         return
 
-    await bot.read_business_message(message.business_connection_id, message.chat.id, message.message_id)
-
     # Проверяем, есть ли у пользователя незавершённые заявки — если да, возобновляем диалог
     active_buyers = await buyer_gateway.get_incompleted_buyers_by_telegram_id_and_cabinet_id(
         message.from_user.id, cabinet.id
@@ -77,6 +75,7 @@ async def process_clients_business_message(
             len(active_buyers),
         )
 
+        await mark_business_message_read(bot, message.business_connection_id, message.chat.id, message.message_id)
         await state.set_state("client_processing")
         await dialog_manager.start(
             resume_state,
@@ -130,6 +129,9 @@ async def _process_accumulated_messages(
 ) -> None:
     """Обработка накопленных сообщений после паузы. Вызывается MessageDebouncer автоматически."""
     logger.info("processing %s accumulated messages for chat %s", len(messages), chat_id)
+
+    # Отложенное прочтение: помечаем прочитанным только перед ответом, а не в момент получения
+    await mark_business_message_read(bot, business_connection_id, chat_id, max(m.message_id for m in messages))
 
     async with di_container() as r_container:
         config = await r_container.get(Config)

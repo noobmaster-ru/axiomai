@@ -20,6 +20,7 @@ from axiomai.infrastructure.chat_history import add_to_chat_history
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.superbanking import Superbanking
+from axiomai.infrastructure.telegram.common import mark_business_message_read
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +51,6 @@ async def on_input_requisites(
         await dialog_manager.done()
         return
 
-    await bot.read_business_message(message.business_connection_id, message.chat.id, message.message_id)
-
     requisites = message.text.strip()
 
     if phone_match := PHONE_PATTERN.search(requisites):
@@ -65,6 +64,8 @@ async def on_input_requisites(
     elif bank_name_rus := superbanking.get_bank_name_rus(requisites):
         dialog_manager.dialog_data["bank"] = bank_name_rus
 
+    # Отложенное прочтение: помечаем прочитанным только перед ответом, а не в момент получения
+    await mark_business_message_read(bot, message.business_connection_id, message.chat.id, message.message_id)
     await dialog_manager.show(ShowMode.SEND)
 
 
