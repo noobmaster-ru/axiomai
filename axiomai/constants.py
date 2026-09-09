@@ -1,7 +1,7 @@
 import re
 
 # Telegram
-WB_CHANNEL_NAME = "@best_wb_hits"
+WB_CHANNEL_NAME = "@kryzhovnik_market"
 
 # Superbanking
 SUPERBANKING_ORDER_PREFIX = "payment-"
@@ -11,7 +11,7 @@ TIME_SLEEP_BEFORE_CONFIRM_PAYMENT = 10
 CONFIRM_PAYMENT_MAX_RETRIES = 5
 CONFIRM_PAYMENT_BACKOFF_BASE = 5  # seconds, doubles each attempt: 5, 10, 20, 40, 80
 URL_CONFIRM_PAYMENT = "https://api.superbanking.ru/cabinet/confirmOperation/createOne?v=1.0.0"
-SUPERBANKING_COMMISSION = 25
+SUPERBANKING_COMMISSION = 35
 SUPERBANKING_ERROR_BODY_PREVIEW_LENGTH = 500  # символов тела ответа в сообщении SuperbankingRequestError
 AXIOMAI_COMMISSION = 5
 
@@ -19,7 +19,7 @@ AXIOMAI_COMMISSION = 5
 GOOGLE_SHEETS_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/1KdSieYIl40NmbK8DBCfL2VJNbDFuK_ydJFirnT_XVkY/edit?gid=1585191033#gid=1585191033"
 
 # Платежи
-PRICE_PER_LEAD = 20  # ₽/лид
+PRICE_PER_LEAD = 40  # ₽/лид
 KIRILL_CARD_NUMBER = "5536 9140 2640 7977"
 KIRILL_PHONE_NUMBER = "89109681153"
 
