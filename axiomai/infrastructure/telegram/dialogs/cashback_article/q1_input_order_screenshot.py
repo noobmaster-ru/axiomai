@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from aiogram import Bot
 from aiogram.enums import ChatAction
-from aiogram.types import Message, URLInputFile
+from aiogram.types import Message
 from aiogram_dialog import DialogManager, ShowMode
 from aiogram_dialog.widgets.input import MessageInput
 from dishka import AsyncContainer, FromDishka
@@ -19,8 +19,9 @@ from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
+from axiomai.infrastructure.kie import ClassifyOrderResult, KieGateway
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, TaskStrategy
-from axiomai.infrastructure.openai import ClassifyOrderResult, OpenAIGateway
+from axiomai.infrastructure.telegram.common import mark_business_message_read, telegram_photo_to_data_url
 from axiomai.infrastructure.telegram.dialogs.cashback_article.common import (
     get_and_increment_photo_error_count,
     get_pending_nm_ids_for_step,
@@ -36,29 +37,26 @@ async def on_input_order_screenshot(
     message: Message,
     widget: MessageInput,
     dialog_manager: DialogManager,
-    openai_gateway: FromDishka[OpenAIGateway],
+    openai_gateway: FromDishka[KieGateway],
     di_container: FromDishka[AsyncContainer],
     message_debouncer: FromDishka[MessageDebouncer],
     config: FromDishka[Config],
 ) -> None:
     bot: Bot = dialog_manager.middleware_data["bot"]
 
-    await bot.read_business_message(message.business_connection_id, message.chat.id, message.message_id)
-
     if not message.photo:
+        await mark_business_message_read(bot, message.business_connection_id, message.chat.id, message.message_id)
         await message.answer("Пожалуйста, отправьте фото скриншота заказа")
         return
 
     photo = message.photo[-1]
-    file = await bot.get_file(photo.file_id)
-    photo_url = f"https://api.telegram.org/file/bot{bot.token}/{file.file_path}"
 
     message_data = MessageData(
         text=message.caption,
         timestamp=datetime.now(UTC).timestamp(),
         message_id=message.message_id,
         has_photo=bool(message.photo),
-        photo_url=photo_url,
+        photo_file_id=photo.file_id,
     )
 
     bg_manager = dialog_manager.bg()
@@ -80,7 +78,7 @@ async def on_input_order_screenshot(
             username=message.from_user.username,
             fullname=message.from_user.full_name,
         ),
-        strategy=TaskStrategy.PHOTO_ONLY
+        strategy=TaskStrategy.PHOTO_ONLY,
     )
 
 
@@ -89,16 +87,19 @@ async def _process_order_screenshot_background(  # noqa: PLR0912, PLR0915, C901
     bot: Bot,
     bg_manager: DialogManager,
     di_container: AsyncContainer,
-    openai_gateway: OpenAIGateway,
+    openai_gateway: KieGateway,
     config: Config,
     chat_id: int,
     business_connection_id: str,
     username: str | None = None,
     fullname: str = "",
 ) -> None:
-    photo_urls = [msg.photo_url for msg in messages if msg.photo_url]
+    # Отложенное прочтение: помечаем прочитанным только перед ответом, а не в момент получения
+    await mark_business_message_read(bot, business_connection_id, chat_id, max(m.message_id for m in messages))
 
-    if len(photo_urls) > 1:
+    photo_file_ids = [msg.photo_file_id for msg in messages if msg.photo_file_id]
+
+    if len(photo_file_ids) > 1:
         await bot.send_message(
             chat_id,
             "Пожалуйста, отправьте только один скриншот заказа. Я получил несколько фото, и не могу понять, какое из них правильное.",
@@ -106,7 +107,7 @@ async def _process_order_screenshot_background(  # noqa: PLR0912, PLR0915, C901
         )
         return
 
-    photo_url = photo_urls[0]
+    photo_file_id = photo_file_ids[0]
 
     await bot.send_message(chat_id, "⏳ Проверяю скриншот заказа...", business_connection_id=business_connection_id)
 
@@ -126,7 +127,7 @@ async def _process_order_screenshot_background(  # noqa: PLR0912, PLR0915, C901
     result: ClassifyOrderResult | None = None
     try:
         result = await openai_gateway.classify_order_screenshot(
-            photo_url=photo_url,
+            photo_data_url=await telegram_photo_to_data_url(bot, photo_file_id),
             articles=pending_articles,
         )
     except Exception as e:
@@ -135,9 +136,7 @@ async def _process_order_screenshot_background(  # noqa: PLR0912, PLR0915, C901
             chat_id, "Попробуйте отправить фото сюда еще раз", business_connection_id=business_connection_id
         )
         result = ClassifyOrderResult(
-            is_order=False,
-            orders=[],
-            cancel_reason="Ошибка при распознавании скриншота заказа"
+            is_order=False, orders=[], cancel_reason="Ошибка при распознавании скриншота заказа"
         )
         return
     finally:
@@ -164,7 +163,7 @@ async def _process_order_screenshot_background(  # noqa: PLR0912, PLR0915, C901
         user_ref = f'<a href="{chat_link}">@{username}</a>' if username else fullname
         await bot.send_photo(
             chat_id=cabinet.business_account_id,
-            photo=URLInputFile(photo_url),
+            photo=photo_file_id,
             caption=(
                 f"⚠️ У пользователя {user_ref} ошибка со скрином заказа\n\n"
                 f"<code>{cancel_reason}</code>\n\n"
@@ -180,7 +179,9 @@ async def _process_order_screenshot_background(  # noqa: PLR0912, PLR0915, C901
         price = order["price"]
 
         if not price:
-            error_count = await get_and_increment_photo_error_count(redis, business_connection_id, chat_id, "check_order")
+            error_count = await get_and_increment_photo_error_count(
+                redis, business_connection_id, chat_id, "check_order"
+            )
             if error_count <= MAX_PHOTO_INPUT_ERRORS:
                 await bot.send_message(
                     chat_id,
@@ -191,10 +192,12 @@ async def _process_order_screenshot_background(  # noqa: PLR0912, PLR0915, C901
 
             chat_link = f"https://t.me/{username}" if username else None
             user_ref = f'<a href="{chat_link}">@{username}</a>' if username else fullname
-            await bot.send_message(chat_id, "Подождите, скоро с вами свяжется менеджер...", business_connection_id=business_connection_id)
+            await bot.send_message(
+                chat_id, "Подождите, скоро с вами свяжется менеджер...", business_connection_id=business_connection_id
+            )
             await bot.send_photo(
                 chat_id=cabinet.business_account_id,
-                photo=URLInputFile(photo_url),
+                photo=photo_file_id,
                 caption=(
                     f"⚠️ У пользователя {user_ref} ошибка со скрином заказа — не видно цену товара\n\n"
                     + (f'<a href="{chat_link}">Перейти к переписке</a>' if chat_link else "")

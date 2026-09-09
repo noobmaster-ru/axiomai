@@ -3,6 +3,7 @@ import logging
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from dishka import AsyncContainer, make_async_container
 
@@ -17,50 +18,51 @@ from axiomai.infrastructure.logging import setup_logging
 logger = logging.getLogger(__name__)
 
 
-async def run_cashback_tables_observer(di_container: AsyncContainer) -> None:
-    logger.info("start cashback tables observering...")
+async def _run_observer_loop[InteractorT](
+    di_container: AsyncContainer,
+    interactor_type: type[InteractorT],
+    name: str,
+    interval_seconds: int,
+) -> None:
+    """Бесконечный цикл одного observer'а: ошибка итерации логируется,
+    но не убивает ни этот цикл, ни соседние task'и в gather().
+    """
+    logger.info("start %s observer...", name)
     while True:
-        async with di_container() as r_container:
-            observe_cashback_tables = await r_container.get(ObserveCashbackTables)
-            await observe_cashback_tables.execute()
+        try:
+            async with di_container() as r_container:
+                interactor = await r_container.get(interactor_type)
+                await interactor.execute()  # type: ignore[attr-defined]
+        except Exception:
+            logger.exception("%s observer iteration failed", name)
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(interval_seconds)
+
+
+async def run_cashback_tables_observer(di_container: AsyncContainer) -> None:
+    await _run_observer_loop(di_container, ObserveCashbackTables, "cashback tables", interval_seconds=10)
 
 
 async def run_sync_cashback_tables(di_container: AsyncContainer) -> None:
-    logger.info("start sync cashback tables...")
-    while True:
-        async with di_container() as r_container:
-            sync_cashback_tables = await r_container.get(SyncCashbackTables)
-            await sync_cashback_tables.execute()
-
-        await asyncio.sleep(10)
+    await _run_observer_loop(di_container, SyncCashbackTables, "sync cashback tables", interval_seconds=10)
 
 
 async def run_balance_notifications_observer(di_container: AsyncContainer) -> None:
-    logger.info("start balance notifications observer...")
-    while True:
-        async with di_container() as r_container:
-            observe_balance_notifications = await r_container.get(ObserveBalanceNotifications)
-            await observe_balance_notifications.execute()
-
-        await asyncio.sleep(10)
+    await _run_observer_loop(di_container, ObserveBalanceNotifications, "balance notifications", interval_seconds=10)
 
 
 async def run_inactive_reminders_observer(di_container: AsyncContainer) -> None:
-    logger.info("start inactive reminders observer...")
-    while True:
-        async with di_container() as r_container:
-            observe_inactive_reminders = await r_container.get(ObserveInactiveReminders)
-            await observe_inactive_reminders.execute()
-
-        await asyncio.sleep(3600)  # Проверяем раз в час
+    """Намеренно не запущен в main(): напоминания неактивным лидам отключены,
+    чтобы не тревожить пользователей слишком часто.
+    """
+    await _run_observer_loop(di_container, ObserveInactiveReminders, "inactive reminders", interval_seconds=3600)
 
 
 async def main() -> None:
     config = load_config()
     setup_logging(json_logs=config.json_logs)
-    bot = Bot(token=config.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    session = AiohttpSession(proxy=config.telegram_proxy or None)
+    bot = Bot(token=config.bot_token, session=session, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     di_container = make_async_container(
         DatabaseProvider(),
         ObserverInteractorsProvider(),

@@ -7,7 +7,13 @@ from axiomai.infrastructure.database.gateways.cashback_table_gateway import Cash
 from axiomai.infrastructure.database.gateways.payment import PaymentGateway
 from axiomai.infrastructure.database.gateways.user import UserGateway
 from axiomai.infrastructure.database.models import Payment
-from axiomai.infrastructure.database.models.payment import PaymentMethod, PaymentStatus, PaymentType, ServiceType
+from axiomai.infrastructure.database.models.payment import (
+    SERVICE_DATA_TYPE_REFILL_BALANCE,
+    PaymentMethod,
+    PaymentStatus,
+    PaymentType,
+    ServiceType,
+)
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
 
 logger = logging.getLogger(__name__)
@@ -51,7 +57,7 @@ class RefillBalance:
             service_data={
                 "service": "cashback",
                 "service_id": cabinet.id,
-                "type": "refill_balance",
+                "type": SERVICE_DATA_TYPE_REFILL_BALANCE,
             },
         )
 

@@ -68,6 +68,13 @@ class FakeBot(Bot):
 
         raise RuntimeError("Fake bot should not be used to call telegram")
 
+    async def download(self, file, destination=None, timeout: int = 30, chunk_size: int = 65536, seek: bool = True):
+        """Подменяет скачивание фото: telegram_photo_to_data_url читает байты через bot.download()."""
+        if destination is not None:
+            destination.write(b"\xff\xd8fake-jpeg-bytes")
+            return None
+        return None
+
     def __hash__(self) -> int:
         return 1
 

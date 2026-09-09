@@ -56,20 +56,15 @@ async def on_seller_confirm_screenshot(
         return
 
     buyers = await buyer_gateway.get_active_buyers_by_telegram_id_and_cabinet_id(lead_id, cabinet.id)
+    if not buyers:
+        logger.info("confirm: no active buyers for lead %s", lead_id)
+        return
 
-    args = command.args.split()
+    args = (command.args or "").split()
+    nm_id = _parse_int(args[0]) if args else None
+    amount = _parse_int(args[1]) if len(args) > 1 else None
 
-    amount = None
-
-    if len(args) == 1:
-        nm_id = _parse_int(args[0])
-    else:
-        nm_id, amount = _parse_int(args[0]), _parse_int(args[1])
-
-    target = next((b for b in buyers if b.nm_id == nm_id), None)
-
-    if not target:
-        target = buyers[0]
+    target = next((b for b in buyers if b.nm_id == nm_id), None) or buyers[0]
 
     if not target.is_ordered:
         target.is_ordered = True

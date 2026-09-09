@@ -18,8 +18,9 @@ from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.models import Buyer
+from axiomai.infrastructure.kie import KieGateway
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, merge_messages_text
-from axiomai.infrastructure.openai import OpenAIGateway
+from axiomai.infrastructure.telegram.common import mark_business_message_read
 from axiomai.infrastructure.telegram.dialogs.states import CashbackArticleStates
 from axiomai.infrastructure.telegram.keyboards.inline import build_manager_handled_keyboard
 
@@ -58,9 +59,9 @@ async def mes_input_handler(
     di_container: FromDishka[AsyncContainer],
 ) -> None:
     bot: Bot = dialog_manager.middleware_data["bot"]
-    await bot.read_business_message(message.business_connection_id, message.chat.id, message.message_id)
 
     if message.text == "stop":
+        await mark_business_message_read(bot, message.business_connection_id, message.chat.id, message.message_id)
         await dialog_manager.done()
         return
 
@@ -70,7 +71,7 @@ async def mes_input_handler(
             timestamp=datetime.now(UTC).timestamp(),
             message_id=message.message_id,
             has_photo=False,
-            photo_url=None,
+            photo_file_id=None,
             chat_id=message.chat.id,
         )
 
@@ -88,6 +89,7 @@ async def mes_input_handler(
         dialog_manager.show_mode = ShowMode.NO_UPDATE
         return
 
+    await mark_business_message_read(bot, message.business_connection_id, message.chat.id, message.message_id)
     await dialog_manager.show(ShowMode.SEND)
 
 
@@ -101,9 +103,12 @@ async def _process_dialog_messages(
     di_container: AsyncContainer,
     bg_manager: DialogManager,
 ) -> None:
+    # Отложенное прочтение: помечаем прочитанным только перед ответом, а не в момент получения
+    await mark_business_message_read(bot, business_connection_id, chat_id, max(m.message_id for m in messages))
+
     async with di_container() as r_container:
         config = await r_container.get(Config)
-        openai_gateway = await r_container.get(OpenAIGateway)
+        openai_gateway = await r_container.get(KieGateway)
         cashback_table_gateway = await r_container.get(CashbackTableGateway)
         cabinet_gateway = await r_container.get(CabinetGateway)
         buyer_gateway = await r_container.get(BuyerGateway)

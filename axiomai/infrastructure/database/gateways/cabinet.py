@@ -1,4 +1,4 @@
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 
 from axiomai.infrastructure.database.gateways.base import Gateway
 from axiomai.infrastructure.database.models import CashbackTable, User
@@ -40,7 +40,7 @@ class CabinetGateway(Gateway):
             await self._session.scalars(
                 select(Cabinet).where(
                     Cabinet.initial_balance > 0,
-                    Cabinet.balance <= Cabinet.initial_balance * 0.5,
+                    Cabinet.balance * 2 <= Cabinet.initial_balance,
                 )
             )
         )
@@ -49,3 +49,25 @@ class CabinetGateway(Gateway):
         return await self._session.scalar(
             select(Cabinet).where(Cabinet.business_connection_id == business_connection_id)
         )
+
+    async def add_refill_balance(self, cabinet_id: int, amount: int) -> None:
+        """Начисляет пополнение и подтягивает initial_balance к новому балансу одним атомарным UPDATE."""
+        await self._session.execute(
+            update(Cabinet)
+            .where(Cabinet.id == cabinet_id)
+            .values(balance=Cabinet.balance + amount, initial_balance=Cabinet.balance + amount)
+        )
+
+    async def add_leads_balance(self, cabinet_id: int, leads: int) -> None:
+        await self._session.execute(
+            update(Cabinet).where(Cabinet.id == cabinet_id).values(leads_balance=Cabinet.leads_balance + leads)
+        )
+
+    async def try_debit_balance(self, cabinet_id: int, amount: int) -> bool:
+        """Списывает amount, только если средств хватает; проверка и списание — один атомарный UPDATE."""
+        result = await self._session.execute(
+            update(Cabinet)
+            .where(Cabinet.id == cabinet_id, Cabinet.balance >= amount)
+            .values(balance=Cabinet.balance - amount)
+        )
+        return result.rowcount == 1

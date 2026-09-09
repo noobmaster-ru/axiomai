@@ -1,8 +1,10 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
+import aiohttp
 import pytest
 
-from axiomai.application.exceptions.superbanking import SignPaymentError, CreatePaymentError
+from axiomai.application.exceptions.superbanking import CreatePaymentError, SignPaymentError, SuperbankingRequestError
+from axiomai.constants import URL_CONFIRM_PAYMENT, URL_SIGN_PAYMENT
 from axiomai.config import SuperbankingConfig
 from axiomai.infrastructure.superbanking import Superbanking
 
@@ -164,3 +166,77 @@ async def test_confirm_operation_missing_url_raises(monkeypatch: pytest.MonkeyPa
 
     with pytest.raises(ValueError, match="Unexpected Superbanking confirm response"):
         await superbanking.confirm_operation("payment-4")
+
+
+class _FakeResponse:
+    def __init__(self, status: int, body: str) -> None:
+        self.status = status
+        self._body = body
+
+    async def text(self) -> str:
+        return self._body
+
+    async def __aenter__(self) -> "_FakeResponse":
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+
+def _make_session(status: int | None = None, body: str = "", exc: Exception | None = None) -> MagicMock:
+    session = MagicMock()
+    if exc is not None:
+        session.post = MagicMock(side_effect=exc)
+    else:
+        session.post = MagicMock(return_value=_FakeResponse(status, body))
+    return session
+
+
+async def test_post_json_raises_on_http_error() -> None:
+    superbanking = Superbanking(_make_config(), _make_session(500, '{"error": "boom"}'))
+
+    with pytest.raises(SuperbankingRequestError) as exc_info:
+        await superbanking._post_json(url=URL_CONFIRM_PAYMENT, payload={}, log_context="confirm operation")
+
+    assert exc_info.value.status == 500
+    assert exc_info.value.body == '{"error": "boom"}'
+    assert exc_info.value.is_retryable is True
+
+
+async def test_post_json_client_error_is_not_retryable() -> None:
+    superbanking = Superbanking(_make_config(), _make_session(400, '{"result": false}'))
+
+    with pytest.raises(SuperbankingRequestError) as exc_info:
+        await superbanking._post_json(url=URL_SIGN_PAYMENT, payload={}, log_context="sign payout")
+
+    assert exc_info.value.status == 400
+    assert exc_info.value.is_retryable is False
+
+
+async def test_post_json_non_json_body_raises_request_error() -> None:
+    superbanking = Superbanking(_make_config(), _make_session(200, "<html>bad gateway</html>"))
+
+    with pytest.raises(SuperbankingRequestError) as exc_info:
+        await superbanking._post_json(url=URL_CONFIRM_PAYMENT, payload={}, log_context="confirm operation")
+
+    assert exc_info.value.status == 200
+    assert "<html>" in (exc_info.value.body or "")
+
+
+async def test_post_json_network_error_is_retryable() -> None:
+    superbanking = Superbanking(_make_config(), _make_session(exc=aiohttp.ClientConnectionError("boom")))
+
+    with pytest.raises(SuperbankingRequestError) as exc_info:
+        await superbanking._post_json(url=URL_CONFIRM_PAYMENT, payload={}, log_context="confirm operation")
+
+    assert exc_info.value.status is None
+    assert exc_info.value.is_retryable is True
+    assert isinstance(exc_info.value.__cause__, aiohttp.ClientConnectionError)
+
+
+async def test_post_json_success_returns_parsed_body() -> None:
+    superbanking = Superbanking(_make_config(), _make_session(200, '{"result": true}'))
+
+    result = await superbanking._post_json(url=URL_SIGN_PAYMENT, payload={}, log_context="sign payout")
+
+    assert result == {"result": True}

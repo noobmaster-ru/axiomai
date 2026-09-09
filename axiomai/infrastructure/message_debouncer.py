@@ -26,7 +26,7 @@ class MessageData:
     timestamp: float
     message_id: int
     has_photo: bool
-    photo_url: str | None = None
+    photo_file_id: str | None = None  # Telegram file_id фото
     chat_id: int | None = None  # Добавлено для возможности отправки ответа
 
 
@@ -54,6 +54,22 @@ class MessageDebouncer:
         self.ttl_seconds = config.message_accumulation_ttl
         self.immediate_processing_length = config.immediate_processing_length
         self._active_timers: dict[str, asyncio.Task] = {}
+        # Per-chat lock: add_message и таймер читают-модифицируют-пишут буфер в Redis,
+        # без сериализации параллельные сообщения одного чата затирали бы друг друга.
+        # Замки не удаляются: их количество ограничено числом чатов, объект дешёвый,
+        # а удаление под ногами у ждущей корутины привело бы к двум замкам на один чат.
+        self._locks: dict[str, asyncio.Lock] = {}
+
+    def _get_lock(self, timer_key: str) -> asyncio.Lock:
+        lock = self._locks.get(timer_key)
+        if lock is None:
+            lock = self._locks[timer_key] = asyncio.Lock()
+        return lock
+
+    def _cancel_timer(self, timer_key: str) -> None:
+        timer = self._active_timers.pop(timer_key, None)
+        if timer is not None and not timer.done():
+            timer.cancel()
 
     async def add_message(
         self,
@@ -66,42 +82,52 @@ class MessageDebouncer:
         redis_key = _get_redis_key(business_connection_id, chat_id)
         timer_key = f"{business_connection_id}:{chat_id}"
 
-        existing_data = await self.redis.get(redis_key)
-        if existing_data:
-            accumulated = _deserialize_messages(existing_data)
-            if accumulated.strategy == TaskStrategy.PHOTO_ONLY and not message_data.has_photo:
-                logger.info("ignoring message without photo (PHOTO_ONLY task already running). chat: %s", chat_id)
-                return False
-        else:
-            accumulated = AccumulatedMessages(
-                messages=[], timer_id=timer_key, scheduled_at=datetime.now(UTC).timestamp(), strategy=strategy
-            )
+        async with self._get_lock(timer_key):
+            existing_data = await self.redis.get(redis_key)
+            if existing_data:
+                accumulated = _deserialize_messages(existing_data)
+                if accumulated.strategy == TaskStrategy.PHOTO_ONLY and not message_data.has_photo:
+                    logger.info("ignoring message without photo (PHOTO_ONLY task already running). chat: %s", chat_id)
+                    return False
+            else:
+                accumulated = AccumulatedMessages(
+                    messages=[], timer_id=timer_key, scheduled_at=datetime.now(UTC).timestamp(), strategy=strategy
+                )
 
-        if message_data.text and len(message_data.text) >= self.immediate_processing_length:
-            logger.info("processing long message immediately (length: %s)", len(message_data.text))
-            await process_callback(business_connection_id, chat_id, [message_data])
-            return True
+            accumulated.messages.append(message_data)
 
-        accumulated.messages.append(message_data)
-        accumulated.scheduled_at = datetime.now(UTC).timestamp() + self.delay_seconds
+            if message_data.text and len(message_data.text) >= self.immediate_processing_length:
+                # Немедленная обработка забирает и уже накопленный буфер: иначе отложенный
+                # таймер позже ответил бы второй раз по устаревшему контексту
+                logger.info(
+                    "processing long message immediately (length: %s, buffered: %s)",
+                    len(message_data.text),
+                    len(accumulated.messages) - 1,
+                )
+                self._cancel_timer(timer_key)
+                await self.redis.delete(redis_key)
+                messages_to_process = accumulated.messages
+            else:
+                messages_to_process = None
+                accumulated.scheduled_at = datetime.now(UTC).timestamp() + self.delay_seconds
 
-        serialized = _serialize_messages(accumulated)
-        await self.redis.setex(redis_key, self.ttl_seconds, serialized)
+                serialized = _serialize_messages(accumulated)
+                await self.redis.setex(redis_key, self.ttl_seconds, serialized)
 
-        logger.info("added message to accumulation buffer. chat: %s, total: %s", chat_id, len(accumulated.messages))
+                logger.info(
+                    "added message to accumulation buffer. chat: %s, total: %s", chat_id, len(accumulated.messages)
+                )
 
-        if timer_key in self._active_timers:
-            old_timer = self._active_timers[timer_key]
-            if not old_timer.done():
-                old_timer.cancel()
-                logger.debug("cancelled previous timer for chat %s", chat_id)
+                self._cancel_timer(timer_key)
+                self._active_timers[timer_key] = asyncio.create_task(
+                    self._delayed_process(business_connection_id, chat_id, process_callback, self.delay_seconds)
+                )
+                logger.debug("started new timer for chat %s (%ss)", chat_id, self.delay_seconds)
 
-        timer_task = asyncio.create_task(
-            self._delayed_process(business_connection_id, chat_id, process_callback, self.delay_seconds)
-        )
-        self._active_timers[timer_key] = timer_task
+        # Колбэк (OpenAI + Telegram) выполняется вне замка, чтобы не блокировать новые сообщения чата
+        if messages_to_process is not None:
+            await process_callback(business_connection_id, chat_id, messages_to_process)
 
-        logger.debug("started new timer for chat %s (%ss)", chat_id, self.delay_seconds)
         return True
 
     async def _delayed_process(
@@ -112,36 +138,36 @@ class MessageDebouncer:
         delay: float,
     ) -> None:
         """Ожидает паузу и затем обрабатывает накопленные сообщения"""
+        redis_key = _get_redis_key(business_connection_id, chat_id)
+        timer_key = f"{business_connection_id}:{chat_id}"
         try:
             await asyncio.sleep(delay)
 
-            redis_key = _get_redis_key(business_connection_id, chat_id)
-            timer_key = f"{business_connection_id}:{chat_id}"
+            async with self._get_lock(timer_key):
+                data = await self.redis.get(redis_key)
+                if not data:
+                    logger.warning("no accumulated messages found for chat %s", chat_id)
+                    return
 
-            # Получаем накопленные сообщения
-            data = await self.redis.get(redis_key)
-            if not data:
-                logger.warning("no accumulated messages found for chat %s", chat_id)
-                return
-
-            accumulated = _deserialize_messages(data)
+                accumulated = _deserialize_messages(data)
+                await self.redis.delete(redis_key)
 
             logger.info("processing accumulated messages. chat: %s, total: %s", chat_id, len(accumulated.messages))
 
-            await self.redis.delete(redis_key)
-            if timer_key in self._active_timers:
-                del self._active_timers[timer_key]
-
             try:
                 await process_callback(business_connection_id, chat_id, accumulated.messages)
-            except Exception as e:
-                logger.exception("error processing accumulated messages", exc_info=e)
+            except Exception:
+                logger.exception("error processing accumulated messages")
 
         except asyncio.CancelledError:
             logger.debug("timer cancelled for chat %s", chat_id)
             raise
-        except Exception as e:
-            logger.exception("error in delayed processing: %s", exc_info=e)
+        except Exception:
+            logger.exception("error in delayed processing")
+        finally:
+            # Снимаем с учёта только собственный task: нас могли отменить и заменить новым таймером
+            if self._active_timers.get(timer_key) is asyncio.current_task():
+                del self._active_timers[timer_key]
 
 
 def _get_redis_key(business_connection_id: str, chat_id: int) -> str:
@@ -159,7 +185,7 @@ def _serialize_messages(accumulated: AccumulatedMessages) -> str:
                     "timestamp": msg.timestamp,
                     "message_id": msg.message_id,
                     "has_photo": msg.has_photo,
-                    "photo_url": msg.photo_url,
+                    "photo_file_id": msg.photo_file_id,
                 }
                 for msg in accumulated.messages
             ],
@@ -184,7 +210,7 @@ def _deserialize_messages(data: bytes | str) -> AccumulatedMessages:
                 timestamp=msg["timestamp"],
                 message_id=msg["message_id"],
                 has_photo=msg["has_photo"],
-                photo_url=msg.get("photo_url"),
+                photo_file_id=msg.get("photo_file_id"),
             )
             for msg in parsed["messages"]
         ],

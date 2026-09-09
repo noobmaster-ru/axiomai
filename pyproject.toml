@@ -11,7 +11,6 @@ dependencies = [
     "aiogram-dialog>=2.4.0",
     "alembic>=1.18.1",
     "dishka>=1.7.2",
-    "isort>=7.0.0",
     "openai>=2.15.0",
     "aiohttp-socks>=0.8.0",
     "psycopg>=3.3.2",
@@ -24,6 +23,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "greenlet>=3.3.1",
+    "isort>=7.0.0",
     "mimesis>=19.1.0",
     "mypy>=1.19.1",
     "pytest>=9.0.2",

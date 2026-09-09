@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from axiomai.infrastructure.database.models import Buyer
 from axiomai.infrastructure.database.models.cashback_table import CashbackTableStatus
-from axiomai.infrastructure.openai import OpenAIGateway
+from axiomai.infrastructure.kie import KieGateway
 from tests.e2e.conftest import cashback_table_factory, cashback_article_factory
 from tests.e2e.test_dialogs.conftest import FakeBotClient, FakeBot
 
@@ -35,7 +35,7 @@ async def test_confirm_multiple_buyers_with_nm_id(
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article1 = await cashback_article_factory(cabinet_id=cabinet.id)
     article2 = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.",
@@ -77,7 +77,7 @@ async def test_confirm_multiple_buyers_with_nm_id_and_amount(
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article1 = await cashback_article_factory(cabinet_id=cabinet.id)
     article2 = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.",
@@ -120,7 +120,7 @@ async def test_confirm_from_lead_is_ignored(
     cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
     openai_gateway.answer_user_question = AsyncMock(return_value={
         "response": "не понял",
         "wants_to_stop": False, "wants_manager": False,
@@ -150,7 +150,7 @@ async def test_cancel_cancels_buyer(
     cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     await _start_dialog(bot_client, article, openai_gateway)
 
@@ -182,7 +182,7 @@ async def test_cancel_requires_nm_id(
     cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     await _start_dialog(bot_client, article, openai_gateway)
 
@@ -214,7 +214,7 @@ async def test_cancel_without_nm_id_requires_it_when_multiple_buyers(
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article1 = await cashback_article_factory(cabinet_id=cabinet.id)
     article2 = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.",
@@ -250,7 +250,7 @@ async def test_cancel_one_of_two_buyers(
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article1 = await cashback_article_factory(cabinet_id=cabinet.id)
     article2 = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.",

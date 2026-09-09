@@ -4,7 +4,11 @@ from aiogram import Bot
 
 from axiomai.application.exceptions.cabinet import CabinetNotFoundError
 from axiomai.application.exceptions.cashback_table import CashbackTableNotFoundError
-from axiomai.application.exceptions.payment import PaymentAlreadyProcessedError, PaymentNotFoundError
+from axiomai.application.exceptions.payment import (
+    PaymentAlreadyProcessedError,
+    PaymentNotFoundError,
+)
+from axiomai.application.interactors.payment_common import ensure_buy_leads_payment
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.gateways.payment import PaymentGateway
@@ -39,10 +43,12 @@ class ConfirmBuyLeadsPayment:
         if not payment:
             raise PaymentNotFoundError(f"Payment with id = {payment_id} not found")
 
+        ensure_buy_leads_payment(payment_id, payment.service_data)
+
         cashback_table = await self._cashback_table_gateway.get_cashback_table_by_id(payment.cashback_table_id)
         if not cashback_table:
             raise CashbackTableNotFoundError(
-                f"Cashback_table.cabinet_id =  {payment.cashback_table_id} not found for the confirm payment"
+                f"Cashback_table.id = {payment.cashback_table_id} not found for the confirm payment"
             )
         cabinet = await self._cabinet_gateway.get_cabinet_by_id(cashback_table.cabinet_id)
         if not cabinet:
@@ -50,20 +56,21 @@ class ConfirmBuyLeadsPayment:
                 f"Cashback_table.cabinet_id = {cashback_table.cabinet_id} not found for the confirm payment"
             )
 
-        if payment.status != PaymentStatus.WAITING_CONFIRM:
+        transitioned = await self._payment_gateway.transition_status(
+            payment_id, PaymentStatus.WAITING_CONFIRM, PaymentStatus.SUCCEEDED
+        )
+        if not transitioned:
             raise PaymentAlreadyProcessedError(
                 f"Payment with id = {payment_id} has already been processed (status: {payment.status.value})"
             )
 
         leads = int(payment.service_data.get("leads", 0) or 0)
 
-        payment.status = PaymentStatus.SUCCEEDED
-
         if cashback_table.status != CashbackTableStatus.PAID:
             cashback_table.status = CashbackTableStatus.PAID
 
         if leads > 0:
-            cabinet.leads_balance = (cabinet.leads_balance or 0) + leads
+            await self._cabinet_gateway.add_leads_balance(cabinet.id, leads)
 
         await self._tm.commit()
 

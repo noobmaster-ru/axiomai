@@ -8,6 +8,7 @@ from dishka.integrations.aiogram import inject
 from axiomai.application.exceptions.cabinet import BusinessAccountAlreadyLinkedError, CabinetAlreadyExistsError
 from axiomai.application.exceptions.user import UserAlreadyExistsError
 from axiomai.application.interactors.create_user import CreateSeller
+from axiomai.config import Config
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.telegram.dialogs.states import CreateCashbackTableStates
@@ -29,6 +30,7 @@ async def cmd_start(
     create_seller: FromDishka[CreateSeller],
     cashback_table_gateway: FromDishka[CashbackTableGateway],
     cabinet_gateway: FromDishka[CabinetGateway],
+    config: FromDishka[Config],
 ) -> None:
     telegram_id = message.from_user.id
     fullname = message.from_user.full_name or "-"
@@ -50,6 +52,6 @@ async def cmd_start(
     except UserAlreadyExistsError:
         pass
 
-    await message.answer(START_MESSAGE_TEXT)
+    await message.answer(START_MESSAGE_TEXT.format(admin_username=config.admin_username))
     await message.answer(REGISTRATION_ACCOUNT_WARNING_TEXT)
     await message.answer(ADD_CABINET_INSTRUCTION_TEXT, reply_markup=kb_add_cabinet)

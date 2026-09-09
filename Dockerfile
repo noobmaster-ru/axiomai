@@ -11,16 +11,22 @@ WORKDIR $APP_PATH
 
 FROM python-base AS builder-base
 
-RUN pip install --no-cache-dir uv
+# Версия совпадает с CI (astral-sh/setup-uv), чтобы образ резолвил тот же набор зависимостей
+RUN pip install --no-cache-dir uv==0.11.12
 
 COPY ./pyproject.toml ./uv.lock ./
 
 RUN uv venv \
-    && uv sync --no-install-project
+    && uv sync --frozen --no-install-project
 
 COPY ./alembic.ini ./
 COPY ./axiomai ./axiomai
 
 FROM python-base
 
-COPY --from=builder-base $APP_PATH $APP_PATH
+RUN addgroup --system --gid 1000 app \
+    && adduser --system --uid 1000 --ingroup app app
+
+COPY --from=builder-base --chown=app:app $APP_PATH $APP_PATH
+
+USER app

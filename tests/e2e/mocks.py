@@ -8,8 +8,11 @@ from axiomai.application.interactors.buy_leads.cancel_payment import CancelBuyLe
 from axiomai.application.interactors.buy_leads.confirm_payment import ConfirmBuyLeadsPayment
 from axiomai.application.interactors.buy_leads.mark_payment_waiting_confirm import MarkBuyLeadsPaymentWaitingConfirm
 from axiomai.application.interactors.cancel_buyer import CancelBuyer
+from axiomai.application.interactors.refill_balance.cancel_payment import CancelRefillBalancePayment
+from axiomai.application.interactors.refill_balance.confirm_payment import ConfirmRefillBalancePayment
 from axiomai.application.interactors.create_buyer import CreateBuyer
 from axiomai.application.interactors.create_superbanking_payment import CreateSuperbankingPayment
+from axiomai.application.interactors.update_buyer_screenshot import UpdateBuyerScreenshot
 from axiomai.application.interactors.create_user import CreateSeller
 from axiomai.application.interactors.observe_balance_notifications import ObserveBalanceNotifications
 from axiomai.application.interactors.observe_cashback_tables import ObserveCashbackTables
@@ -21,14 +24,26 @@ from axiomai.infrastructure.message_debouncer import MessageData, TaskStrategy
 
 
 class FakeTransactionManager(TransactionManager):
+    """Тестовый TM: commit не фиксирует транзакцию (teardown откатывает всё),
+    а rollback откатывает только изменения после последнего commit — через SAVEPOINT,
+    чтобы не терять данные фикстур, как это делал бы session.rollback().
+    """
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self._savepoint = None
 
     async def commit(self) -> None:
         await self._session.flush()
+        self._savepoint = self._session.begin_nested()
+        await self._savepoint.start()
 
     async def rollback(self) -> None:
-        await self._session.rollback()
+        if self._savepoint is not None:
+            await self._savepoint.rollback()
+            self._savepoint = None
+        else:
+            await self._session.rollback()
 
 
 class FakeMessageDebouncer:
@@ -58,8 +73,11 @@ class MocksProvider(GatewaysProvider):
         BuyLeads,
         ConfirmBuyLeadsPayment,
         CancelBuyLeadsPayment,
+        ConfirmRefillBalancePayment,
+        CancelRefillBalancePayment,
         MarkBuyLeadsPaymentWaitingConfirm,
         CreateBuyer,
         CancelBuyer,
         CreateSuperbankingPayment,
+        UpdateBuyerScreenshot,
     )

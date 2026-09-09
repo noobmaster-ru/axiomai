@@ -1,0 +1,30 @@
+.git
+.github
+.venv
+.claude
+.env*
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.DS_Store
+# Секреты и локальные данные — не должны попадать в build context
+sunny-might*.json
+telegram-sender/
+data/
+logs/
+*pgdata*/
+# Не нужны для образа
+tests/
+frontend/
+grafana/
+vector/
+assets/
+docker-compose*.yaml
+Makefile
+README.md
+*.pdf
+*.pptx
+*.xlsx

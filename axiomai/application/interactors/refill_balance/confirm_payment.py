@@ -3,9 +3,12 @@ import logging
 from aiogram import Bot
 
 from axiomai.application.exceptions.cabinet import CabinetNotFoundError
-from axiomai.application.exceptions.payment import PaymentAlreadyProcessedError, PaymentNotFoundError
+from axiomai.application.exceptions.payment import (
+    PaymentAlreadyProcessedError,
+    PaymentNotFoundError,
+)
+from axiomai.application.interactors.payment_common import ensure_refill_balance_payment
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
-from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.gateways.payment import PaymentGateway
 from axiomai.infrastructure.database.gateways.user import UserGateway
 from axiomai.infrastructure.database.models.payment import PaymentStatus
@@ -21,14 +24,12 @@ class ConfirmRefillBalancePayment:
         tm: TransactionManager,
         payment_gateway: PaymentGateway,
         cabinet_gateway: CabinetGateway,
-        cashback_table_gateway: CashbackTableGateway,
         user_gateway: UserGateway,
         bot: Bot,
     ) -> None:
         self._tm = tm
         self._payment_gateway = payment_gateway
         self._cabinet_gateway = cabinet_gateway
-        self._cashback_table_gateway = cashback_table_gateway
         self._user_gateway = user_gateway
         self._bot = bot
 
@@ -37,20 +38,22 @@ class ConfirmRefillBalancePayment:
         if not payment:
             raise PaymentNotFoundError(f"Payment with id {payment_id} not found")
 
-        cabinet = await self._cabinet_gateway.get_cabinet_by_id(payment.service_data["service_id"])
-        if not cabinet:
-            raise CabinetNotFoundError(
-                f"Cashback_table.id = {payment.service_data['service_id']} not found for the confirm payment"
-            )
+        ensure_refill_balance_payment(payment_id, payment.service_data)
 
-        if payment.status != PaymentStatus.WAITING_CONFIRM:
+        cabinet_id = payment.service_data.get("service_id")
+        cabinet = await self._cabinet_gateway.get_cabinet_by_id(cabinet_id) if cabinet_id else None
+        if not cabinet:
+            raise CabinetNotFoundError(f"Cabinet.id = {cabinet_id} not found for the confirm payment")
+
+        transitioned = await self._payment_gateway.transition_status(
+            payment_id, PaymentStatus.WAITING_CONFIRM, PaymentStatus.SUCCEEDED
+        )
+        if not transitioned:
             raise PaymentAlreadyProcessedError(
                 f"Payment with id = {payment_id} has already been processed (status: {payment.status.value})"
             )
 
-        payment.status = PaymentStatus.SUCCEEDED
-        cabinet.balance += payment.amount
-        cabinet.initial_balance = cabinet.balance
+        await self._cabinet_gateway.add_refill_balance(cabinet.id, payment.amount)
 
         await self._tm.commit()
 

@@ -8,6 +8,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from axiomai.infrastructure.database.models.base import Base
 
+# Значения service_data["type"]: по нему admin_confirms маршрутизирует платёж в нужный интерактор
+SERVICE_DATA_TYPE_REFILL_BALANCE = "refill_balance"
+SERVICE_DATA_TYPE_BUY_LEADS = "buy_leads"
+
 
 class ServiceType(enum.Enum):
     CASHBACK = "cashback"
@@ -71,16 +75,16 @@ class Payment(Base):
     )
 
     # кто платил
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     email: Mapped[str | None] = mapped_column(String(256), comment="E-mail покупателя (для чеков/уведомлений)")
 
     # к какой таблице кэшбека относится платёж (через table_id)
     cashback_table_id: Mapped[int | None] = mapped_column(
-        ForeignKey("cashback_tables.id"), comment="Если привязываем напрямую к cashback_tables"
+        ForeignKey("cashback_tables.id"), index=True, comment="Если привязываем напрямую к cashback_tables"
     )
 
     amount: Mapped[int] = mapped_column(
-        comment="Сумма платежа в базовой валюте (например, в рублях или копейках — на твой выбор)"
+        comment="Сумма платежа в рублях (целые рубли, как и Cabinet.balance)"
     )
 
     status: Mapped[PaymentStatus] = mapped_column(

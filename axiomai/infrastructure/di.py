@@ -25,7 +25,7 @@ from axiomai.application.interactors.refill_balance.mark_payment_waiting_confirm
 from axiomai.application.interactors.refill_balance.refill_balance import RefillBalance
 from axiomai.application.interactors.sync_cashback_tables import SyncCashbackTables
 from axiomai.application.interactors.update_buyer_screenshot import UpdateBuyerScreenshot
-from axiomai.config import Config, MessageDebouncerConfig, OpenAIConfig, SuperbankingConfig
+from axiomai.config import Config, KieConfig, MessageDebouncerConfig, SuperbankingConfig
 from axiomai.infrastructure.database.gateways.balance_notification import BalanceNotificationGateway
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
@@ -35,8 +35,8 @@ from axiomai.infrastructure.database.gateways.superbanking_payout import Superba
 from axiomai.infrastructure.database.gateways.user import UserGateway
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
 from axiomai.infrastructure.google_sheets import GoogleSheetsGateway
+from axiomai.infrastructure.kie import KieGateway
 from axiomai.infrastructure.message_debouncer import MessageDebouncer
-from axiomai.infrastructure.openai import OpenAIGateway
 from axiomai.infrastructure.superbanking import Superbanking
 
 
@@ -68,12 +68,12 @@ class ConfigProvider(Provider):
         return config.message_debouncer
 
     @provide(scope=Scope.APP)
-    def superbankink_config(self, config: Config) -> SuperbankingConfig:
-        return config.superbankink_config
+    def superbanking_config(self, config: Config) -> SuperbankingConfig:
+        return config.superbanking_config
 
     @provide(scope=Scope.APP)
-    def openai_config(self, config: Config) -> OpenAIConfig:
-        return config.openai_config
+    def kie_config(self, config: Config) -> KieConfig:
+        return config.kie_config
 
 
 class GatewaysProvider(Provider):
@@ -97,7 +97,7 @@ class GatewaysProvider(Provider):
 
 
 class TgbotInteractorsProvider(Provider):
-    openai_gateway = provide(OpenAIGateway, scope=Scope.APP)
+    kie_gateway = provide(KieGateway, scope=Scope.APP)
     message_debouncer = provide(MessageDebouncer, scope=Scope.APP)
 
     @provide(scope=Scope.APP)

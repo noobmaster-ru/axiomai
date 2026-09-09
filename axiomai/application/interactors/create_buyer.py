@@ -1,5 +1,6 @@
 import logging
 
+from axiomai.application.exceptions.cashback_table import CashbackArticleNotFoundError
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.models.buyer import Buyer
@@ -29,7 +30,7 @@ class CreateBuyer:
     ) -> Buyer:
         article = await self._cashback_table_gateway.get_cashback_article_by_id(article_id)
         if not article:
-            raise ValueError(
+            raise CashbackArticleNotFoundError(
                 f"Article with id {article_id} not found, telegram_id = {telegram_id}, username = {username}, fullname = {fullname}"
             )
 

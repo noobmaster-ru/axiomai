@@ -11,6 +11,12 @@ class BuyerGateway(Gateway):
         self._session.add(buyer)
         await self._session.flush()
 
+    async def refresh(self, buyer: Buyer) -> None:
+        """Перечитывает объект из БД: после commit server-generated колонки (updated_at)
+        становятся expired, и синхронный lazy-load из async-кода падает с MissingGreenlet.
+        """
+        await self._session.refresh(buyer)
+
     async def get_buyer_by_id(self, buyer_id: int) -> Buyer | None:
         return await self._session.scalar(select(Buyer).where(Buyer.id == buyer_id))
 

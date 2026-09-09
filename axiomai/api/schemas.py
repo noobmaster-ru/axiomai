@@ -17,7 +17,6 @@ class ArticleResponse(BaseModel):
 
 
 class CreateBuyerRequest(BaseModel):
-    telegram_id: int
     username: str | None = None
     fullname: str
     article_id: int
@@ -48,7 +47,6 @@ class BuyerResponse(BaseModel):
 class CreatePaymentRequest(BaseModel):
     phone_number: str
     bank: str
-    amount: int | None = None
 
 
 class BankResponse(BaseModel):

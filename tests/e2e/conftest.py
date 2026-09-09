@@ -24,7 +24,7 @@ from axiomai.infrastructure.database.models.cashback_table import CashbackTableS
 from axiomai.infrastructure.database.models.user import User
 from axiomai.infrastructure.google_sheets import GoogleSheetsGateway
 from axiomai.infrastructure.message_debouncer import MessageDebouncer
-from axiomai.infrastructure.openai import OpenAIGateway
+from axiomai.infrastructure.kie import KieGateway
 from axiomai.infrastructure.superbanking import Superbanking
 from tests.e2e.mocks import MocksProvider, FakeMessageDebouncer
 
@@ -103,6 +103,8 @@ async def di_container(session):
     google_sheets_mock.sync_buyers_to_sheet = AsyncMock()
     config = MagicMock()
     config.delay_between_bot_messages = 0
+    config.owner_telegram_id = 999_999
+    config.admin_username = "@support"
 
     container = make_async_container(
         MocksProvider(),
@@ -110,7 +112,7 @@ async def di_container(session):
             AsyncSession: session,
             GoogleSheetsGateway: google_sheets_mock,
             Bot: AsyncMock(),
-            OpenAIGateway: AsyncMock(),
+            KieGateway: AsyncMock(),
             Config: config,
             MessageDebouncer: FakeMessageDebouncer(),
             Redis: FakeRedis(),

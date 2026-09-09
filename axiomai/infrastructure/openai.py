@@ -1,10 +1,20 @@
+"""ЛЕГАСИ: гейтвей к официальному OpenAI API (Responses API). Сейчас НЕ подключён.
+
+Основной гейтвей — infrastructure/kie.py (kie.ai). Этот модуль оставлен как запасной
+вариант для быстрого возврата на OpenAI. Чтобы переключиться обратно:
+1. В infrastructure/di.py заменить KieGateway на OpenAIGateway (и KieConfig на OpenAIConfig).
+2. В config.py вернуть поле `openai_config` в Config (класс OpenAIConfig уже на месте).
+3. В .env задать OPENAI_TOKEN и PROXY (OpenAI недоступен из РФ без прокси).
+4. Обновить импорты в call-site'ах (q1/q2/q3, cashback_article/common.py, process_clients.py).
+"""
+
 import json
 import logging
 import re
 from contextlib import suppress
 from typing import TypedDict
 
-from httpx import AsyncClient, AsyncHTTPTransport
+from httpx import AsyncClient, Timeout
 from openai import AsyncOpenAI
 from openai.types.responses import Response
 
@@ -13,12 +23,14 @@ from axiomai.constants import (
     GPT_MAX_OUTPUT_TOKENS,
     GPT_MAX_OUTPUT_TOKENS_PHOTO_ANALYSIS,
     GPT_REASONING,
-    MODEL_NAME,
 )
 from axiomai.infrastructure.database.models import Buyer
 from axiomai.infrastructure.database.models.cashback_table import CashbackArticle
 
 logger = logging.getLogger(__name__)
+
+# Нейминг официального OpenAI (в constants.MODEL_NAME теперь вариант kie.ai — "gpt-5-2")
+MODEL_NAME = "gpt-5.2"
 
 class ChatHistoryEntry(TypedDict):
     user: str
@@ -63,12 +75,15 @@ class OpenAIGateway:
     def __init__(self, config: OpenAIConfig) -> None:
         self._client = AsyncOpenAI(
             api_key=config.openai_api_key,
-            http_client=AsyncClient(proxy=config.proxy, transport=AsyncHTTPTransport(local_address="0.0.0.0")),
+            # без явного timeout SDK ждёт ответ до 600 секунд
+            timeout=Timeout(300.0, connect=5.0),
+            max_retries=2,
+            http_client=AsyncClient(proxy=config.proxy),
         )
 
     async def classify_order_screenshot(
         self,
-        photo_url: str,
+        photo_data_url: str,
         articles: list[CashbackArticle],
     ) -> ClassifyOrderResult:
         """Классифицирует скриншот заказа по списку товаров."""
@@ -112,7 +127,7 @@ class OpenAIGateway:
 
         user_content = [
             {"type": "input_text", "text": prompt},
-            {"type": "input_image", "image_url": photo_url},
+            {"type": "input_image", "image_url": photo_data_url},
         ]
 
         for art in articles:
@@ -153,7 +168,7 @@ class OpenAIGateway:
 
     async def classify_feedback_screenshot(
         self,
-        photo_url: str,
+        photo_data_url: str,
         articles: list[CashbackArticle],
     ) -> ClassifyFeedbackResult:
         """Классифицирует скриншот отзыва по списку товаров."""
@@ -198,7 +213,7 @@ class OpenAIGateway:
 
         user_content = [
             {"type": "input_text", "text": prompt},
-            {"type": "input_image", "image_url": photo_url},
+            {"type": "input_image", "image_url": photo_data_url},
         ]
         
         for art in articles:
@@ -247,7 +262,7 @@ class OpenAIGateway:
 
     async def classify_cut_labels_photo(
         self,
-        photo_url: str,
+        photo_data_url: str,
         articles: list[CashbackArticle] | None = None,
     ) -> ClassifyCutLabelsResult:
         first_instruction = articles[0].instruction_text if articles else None
@@ -269,7 +284,7 @@ class OpenAIGateway:
 
         user_content = [
             {"type": "input_text", "text": prompt},
-            {"type": "input_image", "image_url": photo_url},
+            {"type": "input_image", "image_url": photo_data_url},
         ]
 
         messages = [
@@ -394,7 +409,7 @@ class OpenAIGateway:
         user_message: str,
         articles: list[CashbackArticle],
         chat_history: list[ChatHistoryEntry] | None = None,
-        photo_url: str | None = None,
+        photo_data_url: str | None = None,
     ) -> PredialogResult:
         """Ведёт pre-dialog общение с клиентом до классификации артикула."""
         articles_info = "\n".join(f"- ID:{article.id} | Название: {article.title}" for article in articles)
@@ -468,10 +483,10 @@ class OpenAIGateway:
         """
 
         user_content: list[dict[str, str]] | str
-        if photo_url:
+        if photo_data_url:
             user_content = [
                 {"type": "input_text", "text": prompt},
-                {"type": "input_image", "image_url": photo_url},
+                {"type": "input_image", "image_url": photo_data_url},
             ]
         else:
             user_content = prompt

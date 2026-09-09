@@ -5,9 +5,8 @@ from axiomai.application.interactors.buy_leads.buy_leads import BuyLeads
 from axiomai.application.interactors.buy_leads.cancel_payment import CancelBuyLeadsPayment
 from axiomai.application.interactors.buy_leads.confirm_payment import ConfirmBuyLeadsPayment
 from axiomai.application.interactors.buy_leads.mark_payment_waiting_confirm import MarkBuyLeadsPaymentWaitingConfirm
-from axiomai.application.exceptions.payment import (
-    PaymentAlreadyProcessedError,
-)
+from axiomai.application.interactors.refill_balance.confirm_payment import ConfirmRefillBalancePayment
+from axiomai.application.exceptions.payment import (PaymentAlreadyProcessedError, PaymentTypeMismatchError)
 from axiomai.constants import PRICE_PER_LEAD
 from axiomai.infrastructure.database.models import Payment
 from axiomai.infrastructure.database.models.cashback_table import CashbackTableStatus
@@ -118,3 +117,27 @@ async def test_confirm_already_processed_payment_raises_error(
 
     with pytest.raises(PaymentAlreadyProcessedError):
         await confirm_payment.execute(admin_telegram_id=694144143, payment_id=payment.id)
+
+
+async def test_refill_interactor_rejects_buy_leads_payment(
+    buy_leads, mark_payment_waiting, di_container, session, user_factory, cabinet_factory, cashback_table_factory
+):
+    """Платёж buy_leads не должен начислять баланс через refill-интерактор:
+    его service_id — это id таблицы, а не кабинета.
+    """
+    user = await user_factory()
+    cabinet = await cabinet_factory(user_id=user.id, balance=0)
+    await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.VERIFIED)
+
+    await buy_leads.execute(telegram_id=user.telegram_id, leads_amount=10)
+    payment = await session.scalar(select(Payment).where(Payment.user_id == user.id))
+    await mark_payment_waiting.execute(payment_id=payment.id)
+
+    confirm_refill = await di_container.get(ConfirmRefillBalancePayment)
+    with pytest.raises(PaymentTypeMismatchError):
+        await confirm_refill.execute(admin_telegram_id=1, payment_id=payment.id)
+
+    await session.refresh(payment)
+    await session.refresh(cabinet)
+    assert payment.status == PaymentStatus.WAITING_CONFIRM  # статус не тронут
+    assert cabinet.balance == 0

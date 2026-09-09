@@ -30,7 +30,7 @@ class CashbackTable(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     cabinet_id: Mapped[int] = mapped_column(
-        ForeignKey("cabinets.id"), comment="Кабинет, к которому относится эта таблица кэшбека"
+        ForeignKey("cabinets.id"), index=True, comment="Кабинет, к которому относится эта таблица кэшбека"
     )
 
     # table_id — то, что ты получаешь из ссылки на гугл-таблицу (ид таблицы), уникально
@@ -59,9 +59,9 @@ class CashbackArticle(Base):
     __tablename__ = "articles"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    cabinet_id: Mapped[int] = mapped_column(ForeignKey("cabinets.id"))
+    cabinet_id: Mapped[int] = mapped_column(ForeignKey("cabinets.id"), index=True)
 
-    nm_id: Mapped[int]  # артикул товара
+    nm_id: Mapped[int] = mapped_column(index=True)  # артикул товара
     title: Mapped[str | None] = mapped_column(String(256))  # название товара
     image_url: Mapped[str]
     brand_name: Mapped[str]

@@ -1,12 +1,13 @@
 import json
 import logging
 import re
+from http import HTTPStatus
 from urllib.parse import urlparse
 
 import aiohttp
 from aiohttp import ClientSession
 
-from axiomai.application.exceptions.superbanking import CreatePaymentError, SignPaymentError
+from axiomai.application.exceptions.superbanking import CreatePaymentError, SignPaymentError, SuperbankingRequestError
 from axiomai.config import SuperbankingConfig
 from axiomai.constants import URL_CONFIRM_PAYMENT, URL_CREATE_PAYMENT, URL_SIGN_PAYMENT
 
@@ -111,7 +112,6 @@ BANK_ALIASES: dict[str, str] = {
     "точка - банк": "TOCHKA BANK",
 }
 
-HTTP_400 = 400
 
 class Superbanking:
     def __init__(self, superbanking_config: SuperbankingConfig, client_session: ClientSession) -> None:
@@ -185,11 +185,7 @@ class Superbanking:
             cabinet_transaction_id = self._extract_cabinet_transaction_id(response_data)
             return str(cabinet_transaction_id)
         except Exception as exc:
-            logger.exception(
-                "Superbanking create_payment() failed for order_number=%s",
-                order_number,
-            )
-            raise CreatePaymentError from exc
+            raise CreatePaymentError(str(exc)) from exc
 
     async def sign_payment(self, cabinet_transaction_id: str, order_number: str) -> bool:
         payload = {
@@ -205,12 +201,7 @@ class Superbanking:
                 add_idempotency_token=True,
             )
         except Exception as exc:
-            logger.exception(
-                "Superbanking sign_payment() failed for cabinet_transaction_id=%s, order_number=%s",
-                cabinet_transaction_id,
-                order_number,
-            )
-            raise SignPaymentError from exc
+            raise SignPaymentError(str(exc)) from exc
 
         try:
             result = self._extract_sign_result(response_data)
@@ -225,21 +216,17 @@ class Superbanking:
 
 
     async def confirm_operation(self, order_number: str) -> str:
-        try:
-            payload = {
-                "cabinetId": self._superbanking_config.cabinet_id,
-                "orderNumber": order_number,
-            }
-            response_data = await self._post_json(
-                url=URL_CONFIRM_PAYMENT,
-                payload=payload,
-                log_context="confirm operation",
-                add_idempotency_token=False,
-            )
-            return self._extract_confirm_url(response_data)
-        except Exception:
-            logger.exception("Superbanking confirm_operation() failed for order_number=%s", order_number)
-            raise
+        payload = {
+            "cabinetId": self._superbanking_config.cabinet_id,
+            "orderNumber": order_number,
+        }
+        response_data = await self._post_json(
+            url=URL_CONFIRM_PAYMENT,
+            payload=payload,
+            log_context="confirm operation",
+            add_idempotency_token=False,
+        )
+        return self._extract_confirm_url(response_data)
 
     async def _post_json(
         self,
@@ -262,20 +249,24 @@ class Superbanking:
             headers["x-idempotency-token"] = order_number
 
         try:
-            async with self._client_session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+            async with self._client_session.post(
+                url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=30)
+            ) as response:
                 body = await response.text()
-                if response.status >= HTTP_400:
-                    logger.exception(
-                        "Superbanking %s failed with status %s. Body: %s",
-                        log_context,
-                        response.status,
-                        body,
-                    )
-        except aiohttp.ClientError:
-            logger.exception("Superbanking %s request failed", log_context)
-            raise
+                status = response.status
+        except aiohttp.ClientError as exc:
+            raise SuperbankingRequestError(log_context) from exc
 
-        return json.loads(body) if body else {}
+        if status >= HTTPStatus.BAD_REQUEST:
+            logger.error("Superbanking %s failed with status %s. Body: %s", log_context, status, body)
+            raise SuperbankingRequestError(log_context, status=status, body=body)
+
+        if not body:
+            return {}
+        try:
+            return json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise SuperbankingRequestError(log_context, status=status, body=body) from exc
 
     @staticmethod
     def _extract_cabinet_transaction_id(response_data: dict) -> str:

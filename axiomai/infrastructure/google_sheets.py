@@ -31,10 +31,20 @@ class GoogleSheetsGateway:
             ],
         )
         self._aiogoogle = Aiogoogle(service_account_creds=self._credentials)
+        # Discovery-документы статичны для (api, version): без кэша observer скачивал бы
+        # их заново на каждый вызов в 10-секундном цикле
+        self._discovered_apis: dict[tuple[str, str], Any] = {}
+
+    async def _discover(self, aiogoogle: Aiogoogle, api_name: str, api_version: str) -> Any:
+        key = (api_name, api_version)
+        api = self._discovered_apis.get(key)
+        if api is None:
+            api = self._discovered_apis[key] = await aiogoogle.discover(api_name, api_version)
+        return api
 
     async def ensure_service_account_added(self, table_id: str) -> None:
         async with self._aiogoogle as aiogoogle:
-            drive_v3 = await aiogoogle.discover("drive", "v3")
+            drive_v3 = await self._discover(aiogoogle, "drive", "v3")
 
             try:
                 permissions = await aiogoogle.as_service_account(
@@ -60,9 +70,15 @@ class GoogleSheetsGateway:
                         )
                     return
 
+            # Аккаунт не найден среди permissions — молча "верифицировать" таблицу нельзя
+            raise PermissionError(
+                "The service account is not present in the document permissions. "
+                "Please share the document with the service account email."
+            )
+
     async def get_cashback_articles(self, table_id: str) -> list[CashbackArticle]:
         async with self._aiogoogle as aiogoogle:
-            sheets_v4 = await aiogoogle.discover("sheets", "v4")
+            sheets_v4 = await self._discover(aiogoogle, "sheets", "v4")
 
             response = await aiogoogle.as_service_account(
                 sheets_v4.spreadsheets.values.get(spreadsheetId=table_id, range="C2:J")
@@ -103,7 +119,7 @@ class GoogleSheetsGateway:
         buyer_index: dict[tuple[int, int], Buyer] = {(b.telegram_id, b.nm_id): b for b in buyers}
 
         async with self._aiogoogle as aiogoogle:
-            sheets_v4 = await aiogoogle.discover("sheets", "v4")
+            sheets_v4 = await self._discover(aiogoogle, "sheets", "v4")
 
             try:
                 await _read_is_paid_manually_from_sheet(aiogoogle, sheets_v4, table_id, buyer_index)
@@ -115,7 +131,7 @@ class GoogleSheetsGateway:
     async def update_settings(self, table_id: str, leads_balance: int, balance: int, updated_at: str) -> None:
         """Обновляет лист 'Настройка': A2 - остаток лидов, B2 - баланс кабинета, C3 - время обновления."""
         async with self._aiogoogle as aiogoogle:
-            sheets_v4 = await aiogoogle.discover("sheets", "v4")
+            sheets_v4 = await self._discover(aiogoogle, "sheets", "v4")
 
             try:
                 await aiogoogle.as_service_account(

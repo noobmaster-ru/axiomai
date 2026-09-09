@@ -2,7 +2,6 @@ from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
 from aiogram import Bot
-from aiohttp.web_exceptions import HTTPError
 from sqlalchemy import select
 
 from axiomai.application.exceptions.payment import NotEnoughBalanceError
@@ -88,8 +87,10 @@ async def test_create_superbanking_payment_missing_bank_raises(
             amount=200,
         )
 
+    await session.refresh(buyer)
+    await session.refresh(cabinet)
     assert buyer.is_superbanking_paid is False
-    assert cabinet.balance == 1000
+    assert cabinet.balance == 1000  # списание откатилось при ошибке Superbanking
 
 
 async def test_create_superbanking_payment_distributes_amount_to_buyers_without_amount(
@@ -266,14 +267,71 @@ async def test_create_superbanking_payment_succeeds_with_exact_balance(
         amount=total_amount,
     )
 
-    assert cabinet.balance == total_charge  # balance is deducted asynchronously after payment confirmation
+    await session.refresh(cabinet)
+    assert cabinet.balance == 0  # деньги списываются в execute() атомарно с созданием payout
+
+
+async def test_create_superbanking_payment_deducts_balance_with_50_percent_cashback(
+    create_superbanking_payment, di_container, session, cabinet_factory
+):
+    cabinet = await cabinet_factory(balance=1000, is_superbanking_connect=True)
+    buyer = Buyer(
+        cabinet_id=cabinet.id,
+        username="test_user",
+        fullname="Test User",
+        telegram_id=987,
+        nm_id=777,
+        amount=200,
+    )
+    article = CashbackArticle(
+        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
+        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=50,
+    )
+    session.add_all([buyer, article])
+    await session.flush()
+    superbanking = await di_container.get(Superbanking)
+    superbanking.create_payment = AsyncMock(return_value="tx-50pct")
+    superbanking.sign_payment = AsyncMock(return_value=True)
+
+    await create_superbanking_payment.execute(
+        telegram_id=buyer.telegram_id,
+        cabinet_id=buyer.cabinet_id,
+        phone_number="+7 910 111 22 33",
+        bank="Тинькофф",
+        amount=200,
+    )
+
+    await session.refresh(cabinet)
+    # amount=200, cashback_percent=50 → cashback_charge = 100
+    expected_charge = 100 + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
+    assert cabinet.balance == 1000 - expected_charge
+
+
+async def test_create_superbanking_payment_refunds_debit_when_superbanking_fails(
+    create_superbanking_payment, di_container, session, cabinet_factory
+):
+    buyer, cabinet = await _create_buyer(session, cabinet_factory, amount=200, cabinet_balance=1000)
+    superbanking = await di_container.get(Superbanking)
+    superbanking.create_payment = AsyncMock(side_effect=CreatePaymentError("Superbanking is down"))
+
+    with pytest.raises(CreatePaymentError):
+        await create_superbanking_payment.execute(
+            telegram_id=buyer.telegram_id,
+            cabinet_id=buyer.cabinet_id,
+            phone_number="+7 910 111 22 33",
+            bank="Тинькофф",
+            amount=200,
+        )
+
+    await session.refresh(cabinet)
+    assert cabinet.balance == 1000  # списание откатилось вместе с payout
 
 
 # --- Tests for send_receipt_after_confirm ---
 
 
 @patch("axiomai.application.interactors.create_superbanking_payment.asyncio.sleep", new_callable=AsyncMock)
-async def test_send_receipt_marks_buyers_paid_and_deducts_balance(
+async def test_send_receipt_marks_buyers_paid(
     mock_sleep, di_container, session, cabinet_factory
 ):
     cabinet = await cabinet_factory(
@@ -314,7 +372,8 @@ async def test_send_receipt_marks_buyers_paid_and_deducts_balance(
 
     assert buyer.is_superbanking_paid is True
     assert buyer.is_paid_manually is True
-    assert cabinet.balance == 1000 - (200 + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION)
+    # send_receipt баланс не трогает: списание уже произошло в execute()
+    assert cabinet.balance == 1000
 
     superbanking.confirm_operation.assert_awaited_once_with(order_number="payment-test-1")
     bot.send_document.assert_awaited_once()
@@ -384,8 +443,7 @@ async def test_send_receipt_multiple_buyers_all_marked_paid(
     assert buyer2.is_superbanking_paid is True
     assert buyer2.is_paid_manually is True
 
-    expected_charge = (300 + 400) + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
-    assert cabinet.balance == 2000 - expected_charge
+    assert cabinet.balance == 2000  # списание происходит в execute(), а не при отправке чека
 
 
 @patch("axiomai.application.interactors.create_superbanking_payment.asyncio.sleep", new_callable=AsyncMock)
@@ -476,14 +534,14 @@ async def test_send_receipt_retries_on_transient_error_then_succeeds(
 
     assert buyer.is_superbanking_paid is True
     assert buyer.is_paid_manually is True
-    assert cabinet.balance == 1000 - (200 + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION)
+    assert cabinet.balance == 1000  # списание происходит в execute(), а не при отправке чека
 
     assert superbanking.confirm_operation.await_count == 2
     bot.send_document.assert_awaited_once()
 
 
 @patch("axiomai.application.interactors.create_superbanking_payment.asyncio.sleep", new_callable=AsyncMock)
-async def test_send_receipt_deducts_half_balance_with_50_percent_cashback(
+async def test_send_receipt_does_not_touch_balance(
     mock_sleep, di_container, session, cabinet_factory
 ):
     cabinet = await cabinet_factory(
@@ -522,6 +580,4 @@ async def test_send_receipt_deducts_half_balance_with_50_percent_cashback(
     await session.refresh(buyer)
     await session.refresh(cabinet)
 
-    # amount=200, cashback_percent=50 → cashback_charge = 200 * 50 // 100 = 100
-    expected_charge = 100 + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
-    assert cabinet.balance == 1000 - expected_charge
+    assert cabinet.balance == 1000  # списание происходит в execute(), а не при отправке чека

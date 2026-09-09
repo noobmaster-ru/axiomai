@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, Mock
 
 from axiomai.infrastructure.database.models.cashback_table import CashbackTableStatus
-from axiomai.infrastructure.openai import OpenAIGateway
+from axiomai.infrastructure.kie import KieGateway
 from tests.e2e.test_dialogs.conftest import FakeBotClient, FakeBot
 
 def _mock_order_error(openai_gateway, article, cancel_reason="Неверный скриншот заказа"):
@@ -55,7 +55,7 @@ async def test_order_screenshot_first_error_sends_text_to_user(
     cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
@@ -81,7 +81,7 @@ async def test_order_screenshot_second_error_sends_text_to_user(
     cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
@@ -112,7 +112,7 @@ async def test_order_screenshot_third_error_notifies_manager(
     )
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
@@ -140,7 +140,7 @@ async def test_order_screenshot_price_missing_first_error_sends_text_to_user(
     cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
@@ -173,7 +173,7 @@ async def test_order_screenshot_price_missing_third_error_notifies_manager(
     )
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
@@ -204,7 +204,7 @@ async def test_feedback_screenshot_first_error_sends_text_to_user(
     cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
@@ -235,7 +235,7 @@ async def test_feedback_screenshot_third_error_notifies_manager(
     )
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
@@ -264,7 +264,7 @@ async def test_cut_labels_screenshot_first_error_sends_text_to_user(
     cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id)
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,
@@ -294,7 +294,7 @@ async def test_cut_labels_screenshot_third_error_notifies_manager(
     cabinet = await cabinet_factory(business_connection_id=bot_client.business_connection_id, business_account_id=999999)
     await cashback_table_factory(cabinet_id=cabinet.id, status=CashbackTableStatus.PAID)
     article = await cashback_article_factory(cabinet_id=cabinet.id)
-    openai_gateway = await di_container.get(OpenAIGateway)
+    openai_gateway = await di_container.get(KieGateway)
 
     openai_gateway.chat_with_client = AsyncMock(return_value={
         "response": "Начнём оформление.", "article_ids": [article.id], "wants_manager": False,

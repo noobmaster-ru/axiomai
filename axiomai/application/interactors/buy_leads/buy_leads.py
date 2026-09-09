@@ -9,7 +9,13 @@ from axiomai.infrastructure.database.gateways.cashback_table_gateway import Cash
 from axiomai.infrastructure.database.gateways.payment import PaymentGateway
 from axiomai.infrastructure.database.gateways.user import UserGateway
 from axiomai.infrastructure.database.models import Payment
-from axiomai.infrastructure.database.models.payment import PaymentMethod, PaymentStatus, PaymentType, ServiceType
+from axiomai.infrastructure.database.models.payment import (
+    SERVICE_DATA_TYPE_BUY_LEADS,
+    PaymentMethod,
+    PaymentStatus,
+    PaymentType,
+    ServiceType,
+)
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
 
 logger = logging.getLogger(__name__)
@@ -61,7 +67,7 @@ class BuyLeads:
                 "leads": leads_amount,
                 "discounts": [{"discount": None, "description": None, "fix_price": None}],
                 "price_per_lead": PRICE_PER_LEAD,
-                "type": "buy_leads",
+                "type": SERVICE_DATA_TYPE_BUY_LEADS,
             },
         )
 

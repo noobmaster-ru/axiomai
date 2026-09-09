@@ -1,36 +1,8 @@
-import logging
-
-from axiomai.application.exceptions.payment import PaymentAlreadyProcessedError, PaymentNotFoundError
-from axiomai.infrastructure.database.gateways.payment import PaymentGateway
-from axiomai.infrastructure.database.models.payment import PaymentStatus
-from axiomai.infrastructure.database.transaction_manager import TransactionManager
-
-logger = logging.getLogger(__name__)
+from axiomai.application.interactors.payment_common import CancelPaymentBase, ensure_refill_balance_payment
 
 
-class CancelRefillBalancePayment:
-    def __init__(
-        self,
-        tm: TransactionManager,
-        payment_gateway: PaymentGateway,
-    ) -> None:
-        self._tm = tm
-        self._payment_gateway = payment_gateway
+class CancelRefillBalancePayment(CancelPaymentBase):
+    _log_label = "refill balance"
 
-    async def execute(self, admin_telegram_id: int, payment_id: int, reason: str | None = None) -> None:
-        payment = await self._payment_gateway.get_payment_by_id(payment_id)
-        if not payment:
-            raise PaymentNotFoundError(f"Payment with id {payment_id} not found")
-
-        if payment.status != PaymentStatus.WAITING_CONFIRM:
-            raise PaymentAlreadyProcessedError(
-                f"Payment with id = {payment_id} has already been processed (status: {payment.status.value})"
-            )
-
-        payment.status = PaymentStatus.CANCELED
-        if reason:
-            payment.canceled_reason = reason
-
-        await self._tm.commit()
-
-        logger.info("refill balance payment %s canceled by admin %s", payment_id, admin_telegram_id)
+    def _ensure_payment_kind(self, payment_id: int, service_data: dict) -> None:
+        ensure_refill_balance_payment(payment_id, service_data)

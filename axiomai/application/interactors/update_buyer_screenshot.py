@@ -1,6 +1,7 @@
 import logging
 from enum import Enum
 
+from axiomai.application.exceptions.buyer import BuyerNotFoundError
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.models.buyer import Buyer
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
@@ -33,12 +34,12 @@ class UpdateBuyerScreenshot:
     async def execute(self, buyer_id: int, screenshot_type: ScreenshotType) -> Buyer:
         buyer = await self._buyer_gateway.get_buyer_by_id(buyer_id)
         if not buyer:
-            msg = f"Buyer with id {buyer_id} not found"
-            raise ValueError(msg)
+            raise BuyerNotFoundError(f"Buyer with id {buyer_id} not found")
 
         field_name = _FIELD_MAP[screenshot_type]
         setattr(buyer, field_name, True)
         await self._transaction_manager.commit()
+        await self._buyer_gateway.refresh(buyer)
 
         logger.info("buyer %s screenshot %s accepted", buyer_id, screenshot_type.value)
         return buyer
