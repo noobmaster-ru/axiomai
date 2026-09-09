@@ -25,8 +25,8 @@ jobs:
             set -e
             cd ${{ secrets.PROD_PATH }}
             git fetch origin main
-            git checkout main
-            # reset вместо pull: деплой не должен падать из-за локальных правок на сервере
+            # -f и reset вместо pull: локальные правки на сервере отбрасываются в пользу origin/main
+            git checkout -f main
             git reset --hard origin/main
             docker compose -f docker-compose.server.yaml -f docker-compose.grafana.yaml up -d --build
             docker image prune -f
