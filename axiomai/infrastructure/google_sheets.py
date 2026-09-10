@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -14,6 +15,17 @@ from axiomai.infrastructure.database.models import Buyer
 
 logger = logging.getLogger(__name__)
 MSK_TZ = timezone(timedelta(hours=3))
+
+
+def _parse_price(raw: str) -> int | None:
+    """Цена из ячейки таблицы: терпит «1249₽», «1 249,50 ₽» и просто числа. Иначе None."""
+    cleaned = re.sub(r"[^\d,.]", "", str(raw)).replace(",", ".")
+    if not cleaned:
+        return None
+    try:
+        return round(float(cleaned))
+    except ValueError:
+        return None
 
 
 class GoogleSheetsGateway:
@@ -101,10 +113,7 @@ class GoogleSheetsGateway:
                         continue
 
                     # колонка K: цена на ВБ в рублях; пустая или битая ячейка — None
-                    try:
-                        price = round(float(row[8].replace(",", "."))) if len(row) >= 9 and row[8] else None  # noqa: PLR2004
-                    except ValueError:
-                        price = None
+                    price = _parse_price(row[8]) if len(row) >= 9 else None  # noqa: PLR2004
 
                     articles.append(
                         CashbackArticle(
