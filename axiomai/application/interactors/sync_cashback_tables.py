@@ -50,6 +50,7 @@ class SyncCashbackTables:
                     article.instruction_text = dto.instruction_text
                     article.in_stock = dto.in_stock
                     article.cashback_percent = dto.cashback_percent
+                    article.price = dto.price
                     article.is_deleted = False
                 else:
                     new_article = CashbackArticle(
@@ -61,6 +62,7 @@ class SyncCashbackTables:
                         instruction_text=dto.instruction_text,
                         in_stock=dto.in_stock,
                         cashback_percent=dto.cashback_percent,
+                        price=dto.price,
                     )
                     await self._cashback_table_gateway.create_article(new_article)
 

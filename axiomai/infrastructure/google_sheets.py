@@ -81,7 +81,7 @@ class GoogleSheetsGateway:
             sheets_v4 = await self._discover(aiogoogle, "sheets", "v4")
 
             response = await aiogoogle.as_service_account(
-                sheets_v4.spreadsheets.values.get(spreadsheetId=table_id, range="C2:J")
+                sheets_v4.spreadsheets.values.get(spreadsheetId=table_id, range="C2:K")
             )
 
             values = response.get("values", [])
@@ -100,6 +100,12 @@ class GoogleSheetsGateway:
                     except ValueError:
                         continue
 
+                    # колонка K: цена на ВБ в рублях; пустая или битая ячейка — None
+                    try:
+                        price = round(float(row[8].replace(",", "."))) if len(row) >= 9 and row[8] else None  # noqa: PLR2004
+                    except ValueError:
+                        price = None
+
                     articles.append(
                         CashbackArticle(
                             nm_id=nm_id,
@@ -109,6 +115,7 @@ class GoogleSheetsGateway:
                             image_url=image_url,
                             in_stock=in_stock,
                             cashback_percent=cashback_percent,
+                            price=price,
                         )
                     )
 

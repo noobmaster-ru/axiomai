@@ -10,3 +10,4 @@ class CashbackArticle:
     image_url: str
     in_stock: bool
     cashback_percent: int
+    price: int | None = None  # цена на ВБ в рублях, колонка K таблицы

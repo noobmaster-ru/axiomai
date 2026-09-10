@@ -68,6 +68,7 @@ class CashbackArticle(Base):
     instruction_text: Mapped[str]
     in_stock: Mapped[bool]
     cashback_percent: Mapped[int] = mapped_column(default=100)
+    price: Mapped[int | None] = mapped_column(comment="Цена на ВБ в рублях, из колонки K таблицы")
     is_deleted: Mapped[bool] = mapped_column(default=False)
 
     created_at: Mapped[datetime.datetime] = mapped_column(
