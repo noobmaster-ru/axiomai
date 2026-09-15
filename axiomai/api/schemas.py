@@ -36,6 +36,8 @@ class BuyerResponse(BaseModel):
     phone_number: str | None
     bank: str | None
     amount: int | None
+    cashback_percent: int
+    instruction_text: str
     is_superbanking_paid: bool
     is_paid_manually: bool
     created_at: datetime.datetime

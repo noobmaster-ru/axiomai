@@ -78,6 +78,28 @@ def _image(url: str) -> dict[str, Any]:
     return {"type": "image_url", "image_url": {"url": url}}
 
 
+def build_instruction_text(buyers: list[Buyer]) -> str | None:
+    """Инструкция для модели из заявок клиента: зафиксированная при создании заявки, а не текущая из таблицы.
+
+    Одна общая инструкция отдаётся как есть; если у заявок инструкции разные, каждая подписывается артикулами.
+    Нет заявок или инструкции пустые → None, вызывающий код подставляет свой fallback.
+    """
+    nm_ids_by_instruction: dict[str, list[int]] = {}
+    for buyer in buyers:
+        text = (buyer.instruction_text or "").strip()
+        if text:
+            nm_ids_by_instruction.setdefault(text, []).append(buyer.nm_id)
+    if not nm_ids_by_instruction:
+        return None
+    if len(nm_ids_by_instruction) == 1:
+        return next(iter(nm_ids_by_instruction))
+    parts = []
+    for text, nm_ids in nm_ids_by_instruction.items():
+        joined_nm_ids = ", ".join(str(nm_id) for nm_id in nm_ids)
+        parts.append(f"Для артикула {joined_nm_ids}:\n{text}")
+    return "\n\n".join(parts)
+
+
 class KieGateway:
     def __init__(self, config: KieConfig) -> None:
         self._client = AsyncOpenAI(
@@ -109,13 +131,18 @@ class KieGateway:
         self,
         photo_data_url: str,
         articles: list[CashbackArticle],
+        instruction_text: str | None = None,
     ) -> ClassifyOrderResult:
-        """Классифицирует скриншот заказа по списку товаров."""
+        """Классифицирует скриншот заказа по списку товаров.
+
+        instruction_text — инструкция из заявок клиента (см. build_instruction_text);
+        без неё берётся текущая инструкция первого артикула.
+        """
         articles_text = "\n".join(
             f'- nm_id={art.nm_id}, Название: "{art.title}", Бренд: "{art.brand_name}"'
             for art in articles
         )
-        first_instruction = articles[0].instruction_text if articles else None
+        instruction = instruction_text or (articles[0].instruction_text if articles else None)
         valid_nm_ids = {art.nm_id for art in articles}
 
         system_content = """
@@ -146,7 +173,7 @@ class KieGateway:
         {articles_text}
 
         ИНСТРУКЦИЯ (дополнительные критерии для проверки):
-        {first_instruction}
+        {instruction}
         """
 
         user_content = [_text(prompt), _image(photo_data_url)]
@@ -185,13 +212,18 @@ class KieGateway:
         self,
         photo_data_url: str,
         articles: list[CashbackArticle],
+        instruction_text: str | None = None,
     ) -> ClassifyFeedbackResult:
-        """Классифицирует скриншот отзыва по списку товаров."""
+        """Классифицирует скриншот отзыва по списку товаров.
+
+        instruction_text — инструкция из заявок клиента (см. build_instruction_text);
+        без неё берётся текущая инструкция первого артикула.
+        """
         articles_text = "\n".join(
             f'- nm_id={art.nm_id}, Название: "{art.title}", Бренд: "{art.brand_name}"'
             for art in articles
         )
-        first_instruction = articles[0].instruction_text if articles else None
+        instruction = instruction_text or (articles[0].instruction_text if articles else None)
         valid_nm_ids = {art.nm_id for art in articles}
 
         system_content = """
@@ -223,7 +255,7 @@ class KieGateway:
         {articles_text}
 
         ИНСТРУКЦИЯ (дополнительные критерии для проверки):
-        {first_instruction}
+        {instruction}
         """
 
         user_content = [_text(prompt), _image(photo_data_url)]
@@ -262,8 +294,14 @@ class KieGateway:
         self,
         photo_data_url: str,
         articles: list[CashbackArticle] | None = None,
+        instruction_text: str | None = None,
     ) -> ClassifyCutLabelsResult:
-        first_instruction = articles[0].instruction_text if articles else None
+        """Проверяет фото разрезанных этикеток.
+
+        instruction_text — инструкция из заявок клиента (см. build_instruction_text);
+        без неё берётся текущая инструкция первого артикула.
+        """
+        instruction = instruction_text or (articles[0].instruction_text if articles else None)
 
         system_content = """
         Ты помощник для анализа фотографий разрезанных этикеток Wildberries.
@@ -277,7 +315,7 @@ class KieGateway:
         Подумай и скажи есть ли на фотографии клиента РАЗРЕЗАННЫЕ/ПОРВАННЫЕ/ЗАМАЗАННЫЕ этикетки (штрихкода или QR-кода) Wildberries.
 
         ИНСТРУКЦИЯ (дополнительные критерии для проверки):
-        {first_instruction}
+        {instruction}
         """
 
         messages: list[dict[str, Any]] = [
@@ -312,12 +350,14 @@ class KieGateway:
         articles_text = "\n".join([f"- ID:{article.id} Артикул WB: {article.nm_id}, Название: {article.title}" for article in articles])
         current_buyers_text = "\n".join(
             [
-                f"- Артикул WB:{buyer.nm_id}, Скриншот заказа:{buyer.is_ordered} Скриншот отзыва:{buyer.is_left_feedback} Фото разрезанных этикеток:{buyer.is_left_feedback}"
+                f"- Артикул WB:{buyer.nm_id}, Скриншот заказа:{buyer.is_ordered} Скриншот отзыва:{buyer.is_left_feedback} Фото разрезанных этикеток:{buyer.is_cut_labels}"
                 for buyer in current_buyers
             ]
         )
 
-        instruction_text = articles[0].instruction_text
+        # Инструкция из заявок клиента (зафиксирована при их создании). Fallback на первый доступный артикул
+        # нужен только для заявок без инструкции; пустой список артикулов больше не роняет ответ.
+        instruction_text = build_instruction_text(current_buyers) or (articles[0].instruction_text if articles else "")
 
         system_content = """
         Ты — вежливый помощник кешбек-сервиса Wildberries.

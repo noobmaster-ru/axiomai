@@ -24,8 +24,8 @@ from axiomai.constants import (
 )
 from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
-from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.gateways.superbanking_payout import SuperbankingPayoutGateway
+from axiomai.infrastructure.database.models.buyer import Buyer
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
 from axiomai.infrastructure.superbanking import Superbanking
 
@@ -37,7 +37,6 @@ class CreateSuperbankingPayment:
         self,
         buyer_gateway: BuyerGateway,
         cabinet_gateway: CabinetGateway,
-        cashback_table_gateway: CashbackTableGateway,
         superbanking_payout_gateway: SuperbankingPayoutGateway,
         transaction_manager: TransactionManager,
         superbanking: Superbanking,
@@ -45,7 +44,6 @@ class CreateSuperbankingPayment:
     ) -> None:
         self._buyer_gateway = buyer_gateway
         self._cabinet_gateway = cabinet_gateway
-        self._cashback_table_gateway = cashback_table_gateway
         self._superbanking_payout_gateway = superbanking_payout_gateway
         self._transaction_manager = transaction_manager
         self._superbanking = superbanking
@@ -91,9 +89,7 @@ class CreateSuperbankingPayment:
             await self._transaction_manager.commit()
             raise SkipSuperbankingError(cabinet_id=cabinet.id, is_superbanking_connect=cabinet.is_superbanking_connect)
 
-        articles = await self._cashback_table_gateway.get_cashback_articles_by_nm_ids(nm_ids)
-        articles_by_nm_id = {a.nm_id: a for a in articles}
-        cashback_charge = _calc_cashback_charge(buyers, articles_by_nm_id)
+        cashback_charge = _calc_cashback_charge(buyers)
         total_charge = cashback_charge + SUPERBANKING_COMMISSION + AXIOMAI_COMMISSION
 
         # Проверка и списание — один атомарный UPDATE; деньги резервируются ДО обращения к Superbanking,
@@ -247,10 +243,10 @@ async def send_receipt_after_confirm(
     )
 
 
-def _calc_cashback_charge(buyers: list, articles_by_nm_id: dict) -> int:
-    charge = 0
-    for buyer in buyers:
-        article = articles_by_nm_id.get(buyer.nm_id)
-        if article and buyer.amount:
-            charge += buyer.amount * article.cashback_percent // 100
-    return charge
+def _calc_cashback_charge(buyers: list[Buyer]) -> int:
+    """Сумма выплаты: цена заказа × процент, зафиксированный в заявке при её создании.
+
+    Текущий процент артикула в таблице намеренно не используется: правка процента селлером
+    не должна менять условия для клиентов, которые уже начали сценарий.
+    """
+    return sum(buyer.amount * buyer.cashback_percent // 100 for buyer in buyers if buyer.amount)

@@ -38,6 +38,7 @@ async def _create_buyer(
         fullname="Test User",
         telegram_id=123456,
         nm_id=777,
+        cashback_percent=100,
         phone_number=phone_number,
         bank=bank,
         amount=amount,
@@ -103,6 +104,7 @@ async def test_create_superbanking_payment_distributes_amount_to_buyers_without_
         fullname="User 1",
         telegram_id=123456,
         nm_id=111,
+        cashback_percent=100,
         amount=None,
     )
     buyer2 = Buyer(
@@ -111,6 +113,7 @@ async def test_create_superbanking_payment_distributes_amount_to_buyers_without_
         fullname="User 2",
         telegram_id=123456,
         nm_id=222,
+        cashback_percent=100,
         amount=None,
     )
     session.add_all([buyer1, buyer2])
@@ -142,6 +145,7 @@ async def test_create_superbanking_payment_does_not_override_existing_amounts(
         fullname="User 1",
         telegram_id=123456,
         nm_id=111,
+        cashback_percent=100,
         amount=100,
     )
     buyer2 = Buyer(
@@ -150,6 +154,7 @@ async def test_create_superbanking_payment_does_not_override_existing_amounts(
         fullname="User 2",
         telegram_id=123456,
         nm_id=222,
+        cashback_percent=100,
         amount=300,
     )
     session.add_all([buyer1, buyer2])
@@ -181,6 +186,7 @@ async def test_create_superbanking_payment_mixed_buyers_with_and_without_amount(
         fullname="User 1",
         telegram_id=123456,
         nm_id=111,
+        cashback_percent=100,
         amount=150,
     )
     buyer_without_amount = Buyer(
@@ -189,6 +195,7 @@ async def test_create_superbanking_payment_mixed_buyers_with_and_without_amount(
         fullname="User 2",
         telegram_id=123456,
         nm_id=222,
+        cashback_percent=100,
         amount=None,
     )
     session.add_all([buyer_with_amount, buyer_without_amount])
@@ -218,12 +225,6 @@ async def test_create_superbanking_payment_raises_not_enough_balance(
     buyer, cabinet = await _create_buyer(
         session, cabinet_factory, amount=total_amount, cabinet_balance=total_charge - 1
     )
-    article = CashbackArticle(
-        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
-        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
-    )
-    session.add(article)
-    await session.flush()
     superbanking = await di_container.get(Superbanking)
     superbanking.create_payment = AsyncMock()
     superbanking.sign_payment = AsyncMock()
@@ -249,12 +250,6 @@ async def test_create_superbanking_payment_succeeds_with_exact_balance(
     buyer, cabinet = await _create_buyer(
         session, cabinet_factory, amount=total_amount, cabinet_balance=total_charge
     )
-    article = CashbackArticle(
-        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
-        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
-    )
-    session.add(article)
-    await session.flush()
     superbanking = await di_container.get(Superbanking)
     superbanking.create_payment = AsyncMock(return_value="tx-exact")
     superbanking.sign_payment = AsyncMock(return_value=True)
@@ -281,13 +276,10 @@ async def test_create_superbanking_payment_deducts_balance_with_50_percent_cashb
         fullname="Test User",
         telegram_id=987,
         nm_id=777,
+        cashback_percent=50,
         amount=200,
     )
-    article = CashbackArticle(
-        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
-        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=50,
-    )
-    session.add_all([buyer, article])
+    session.add(buyer)
     await session.flush()
     superbanking = await di_container.get(Superbanking)
     superbanking.create_payment = AsyncMock(return_value="tx-50pct")
@@ -343,13 +335,10 @@ async def test_send_receipt_marks_buyers_paid(
         fullname="Test User",
         telegram_id=123456,
         nm_id=777,
+        cashback_percent=100,
         amount=200,
     )
-    article = CashbackArticle(
-        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
-        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
-    )
-    session.add_all([buyer, article])
+    session.add(buyer)
     await session.flush()
 
     superbanking = await di_container.get(Superbanking)
@@ -397,6 +386,7 @@ async def test_send_receipt_multiple_buyers_all_marked_paid(
         fullname="User 1",
         telegram_id=555,
         nm_id=111,
+        cashback_percent=100,
         amount=300,
     )
     buyer2 = Buyer(
@@ -405,18 +395,10 @@ async def test_send_receipt_multiple_buyers_all_marked_paid(
         fullname="User 2",
         telegram_id=555,
         nm_id=222,
+        cashback_percent=100,
         amount=400,
     )
     session.add_all([buyer1, buyer2])
-    article1 = CashbackArticle(
-        cabinet_id=cabinet.id, nm_id=111, title="T", brand_name="B",
-        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
-    )
-    article2 = CashbackArticle(
-        cabinet_id=cabinet.id, nm_id=222, title="T", brand_name="B",
-        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
-    )
-    session.add_all([article1, article2])
     await session.flush()
 
     superbanking = await di_container.get(Superbanking)
@@ -459,6 +441,7 @@ async def test_send_receipt_does_not_mark_buyers_when_confirm_fails(
         fullname="Test User",
         telegram_id=789,
         nm_id=777,
+        cashback_percent=100,
         amount=200,
     )
     session.add(buyer)
@@ -503,13 +486,10 @@ async def test_send_receipt_retries_on_transient_error_then_succeeds(
         fullname="Test User",
         telegram_id=321,
         nm_id=777,
+        cashback_percent=100,
         amount=200,
     )
-    article = CashbackArticle(
-        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
-        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=100,
-    )
-    session.add_all([buyer, article])
+    session.add(buyer)
     await session.flush()
 
     superbanking = await di_container.get(Superbanking)
@@ -553,13 +533,10 @@ async def test_send_receipt_does_not_touch_balance(
         fullname="Test User",
         telegram_id=123456,
         nm_id=777,
+        cashback_percent=100,
         amount=200,
     )
-    article = CashbackArticle(
-        cabinet_id=cabinet.id, nm_id=777, title="T", brand_name="B",
-        image_url="http://x", instruction_text="I", in_stock=True, cashback_percent=50,
-    )
-    session.add_all([buyer, article])
+    session.add(buyer)
     await session.flush()
 
     superbanking = await di_container.get(Superbanking)
