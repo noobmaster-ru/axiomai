@@ -150,6 +150,7 @@ async def test_cashback_article_filters_already_bought_articles(
         fullname="Test User",
         telegram_id=bot_client.user.id,
         nm_id=article_bought.nm_id,
+        cashback_percent=100,
         is_ordered=True,
         is_left_feedback=True,
         is_cut_labels=True,

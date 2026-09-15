@@ -16,6 +16,34 @@ from axiomai.infrastructure.database.models import Buyer
 logger = logging.getLogger(__name__)
 MSK_TZ = timezone(timedelta(hours=3))
 
+# Лист «Покупатели»: шапку пишет синк, поэтому раскладка колонок задаётся только здесь
+# и должна совпадать с порядком ячеек в _buyer_to_row().
+BUYERS_SHEET_TITLE = "Покупатели"
+BUYERS_SHEET_HEADERS = [
+    "Ссылка на ник",  # A
+    "Телеграм ID",  # B
+    "Имя юзера в Telegram",  # C
+    "Первое сообщение",  # D
+    "Последнее сообщение",  # E
+    "Текст последнего сообщения",  # F
+    "Артикул",  # G
+    "Скрин заказа(GPT)",  # H
+    "Скрин отзыва(GPT)",  # I
+    "Фото разрезанных ШК(GPT)",  # J
+    "Номер телефона (superbanking format)",  # K
+    "Банк",  # L
+    "Сумма(GPT)",  # M — полная цена заказа со скриншота
+    "Процент кэшбека",  # N — зафиксирован в заявке при её создании
+    "Сумма кэшбека",  # O — M × N / 100, столько получает клиент
+    "Имя в Telegram",  # P
+    "Выплата произведена(superbanking)",  # Q
+    "Выплатили(руками)",  # R — чекбокс, читается обратно в БД
+]
+BUYERS_SHEET_COLUMNS_COUNT = len(BUYERS_SHEET_HEADERS)
+# Чекбокс «Выплатили(руками)» всегда последняя колонка
+PAID_MANUALLY_COLUMN_INDEX = BUYERS_SHEET_COLUMNS_COUNT - 1
+PAID_MANUALLY_COLUMN_LETTER = chr(ord("A") + PAID_MANUALLY_COLUMN_INDEX)  # «R»; верно, пока колонок не больше 26
+
 
 def _parse_price(raw: str) -> int | None:
     """Цена из ячейки таблицы: терпит «1249₽», «1 249,50 ₽» и просто числа. Иначе None."""
@@ -165,9 +193,11 @@ class GoogleSheetsGateway:
 async def _read_is_paid_manually_from_sheet(
     aiogoogle: Aiogoogle, sheets_v4: Any, table_id: str, buyer_index: dict[tuple[int, int], Buyer]
 ) -> None:
-    """Читает значения is_paid_manually из колонки P и обновляет объекты Buyer."""
+    """Читает чекбокс «Выплатили(руками)» из последней колонки листа и обновляет объекты Buyer."""
     existing_response = await aiogoogle.as_service_account(
-        sheets_v4.spreadsheets.values.get(spreadsheetId=table_id, range="Покупатели!B2:P")
+        sheets_v4.spreadsheets.values.get(
+            spreadsheetId=table_id, range=f"{BUYERS_SHEET_TITLE}!B2:{PAID_MANUALLY_COLUMN_LETTER}"
+        )
     )
     existing_values = existing_response.get("values", [])
 
@@ -177,7 +207,7 @@ async def _read_is_paid_manually_from_sheet(
         with suppress(ValueError, IndexError):
             telegram_id = int(row[0])  # B - telegram_id
             nm_id = int(row[5])  # G - nm_id (индекс 5 относительно B)
-            is_paid_manually = row[14] == "TRUE"
+            is_paid_manually = row[PAID_MANUALLY_COLUMN_INDEX - 1] == "TRUE"  # индекс относительно колонки B
             key = (telegram_id, nm_id)
             if key in buyer_index and (not buyer_index[key].is_superbanking_paid):
                 buyer_index[key].is_paid_manually = is_paid_manually
@@ -195,7 +225,7 @@ async def _write_buyers_to_sheet(aiogoogle: Aiogoogle, sheets_v4: Any, table_id:
     conditional_formats_count = 0
     row_count = 0
     for sheet in spreadsheet.get("sheets", []):
-        if sheet.get("properties", {}).get("title") == "Покупатели":
+        if sheet.get("properties", {}).get("title") == BUYERS_SHEET_TITLE:
             sheet_id = sheet["properties"]["sheetId"]
             conditional_formats_count = len(sheet.get("conditionalFormats", []))
             row_count = sheet.get("properties", {}).get("gridProperties", {}).get("rowCount", 0)
@@ -218,9 +248,22 @@ async def _write_buyers_to_sheet(aiogoogle: Aiogoogle, sheets_v4: Any, table_id:
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "startColumnIndex": 0,
-                    "endColumnIndex": 16,
+                    "endColumnIndex": BUYERS_SHEET_COLUMNS_COUNT,
                 },
                 "fields": "userEnteredValue,dataValidation",
+            }
+        }
+    )
+
+    # Шапка пишется на каждом синке: при смене раскладки колонок таблицы селлеров обновляются сами,
+    # без ручной правки. Меняется только текст ячеек, форматирование шапки остаётся.
+    header_cells = [{"userEnteredValue": {"stringValue": header}} for header in BUYERS_SHEET_HEADERS]
+    requests.append(
+        {
+            "updateCells": {
+                "rows": [{"values": header_cells}],
+                "start": {"sheetId": sheet_id, "rowIndex": 0, "columnIndex": 0},
+                "fields": "userEnteredValue",
             }
         }
     )
@@ -256,7 +299,7 @@ async def _write_buyers_to_sheet(aiogoogle: Aiogoogle, sheets_v4: Any, table_id:
             }
         )
 
-        # Data validation для checkbox в колонке P
+        # Data validation для checkbox «Выплатили(руками)»
         requests.append(
             {
                 "setDataValidation": {
@@ -264,8 +307,8 @@ async def _write_buyers_to_sheet(aiogoogle: Aiogoogle, sheets_v4: Any, table_id:
                         "sheetId": sheet_id,
                         "startRowIndex": 1,
                         "endRowIndex": len(rows) + 1,
-                        "startColumnIndex": 15,
-                        "endColumnIndex": 16,
+                        "startColumnIndex": PAID_MANUALLY_COLUMN_INDEX,
+                        "endColumnIndex": PAID_MANUALLY_COLUMN_INDEX + 1,
                     },
                     "rule": {"condition": {"type": "BOOLEAN"}, "strict": True},
                 }
@@ -283,13 +326,13 @@ async def _write_buyers_to_sheet(aiogoogle: Aiogoogle, sheets_v4: Any, table_id:
                                 "startRowIndex": 1,
                                 "endRowIndex": len(rows) + 1,
                                 "startColumnIndex": 0,
-                                "endColumnIndex": 16,
+                                "endColumnIndex": BUYERS_SHEET_COLUMNS_COUNT,
                             }
                         ],
                         "booleanRule": {
                             "condition": {
                                 "type": "CUSTOM_FORMULA",
-                                "values": [{"userEnteredValue": "=$P2=TRUE"}],
+                                "values": [{"userEnteredValue": f"=${PAID_MANUALLY_COLUMN_LETTER}2=TRUE"}],
                             },
                             "format": {
                                 "backgroundColor": {"red": 0.85, "green": 0.95, "blue": 0.85},
@@ -307,7 +350,7 @@ async def _write_buyers_to_sheet(aiogoogle: Aiogoogle, sheets_v4: Any, table_id:
 
 
 def _buyer_to_row(buyer: Buyer) -> list[str]:
-    """Конвертирует Buyer в строку для Google Sheets."""
+    """Конвертирует Buyer в строку для Google Sheets. Порядок ячеек — как в BUYERS_SHEET_HEADERS."""
     first_user_msg_time = ""
     last_user_msg_time = ""
     last_user_msg_text = ""
@@ -322,6 +365,7 @@ def _buyer_to_row(buyer: Buyer) -> list[str]:
             last_user_msg_text = last_msg.get("user", "")
 
     username_link = f"@{buyer.username}" if buyer.username else buyer.fullname
+    cashback_amount = buyer.amount * buyer.cashback_percent // 100 if buyer.amount else None
 
     return [
         username_link,  # A - ссылка на ник
@@ -336,10 +380,12 @@ def _buyer_to_row(buyer: Buyer) -> list[str]:
         "ДА" if buyer.is_cut_labels else "",  # J - is_cut_labels
         buyer.phone_number or "",  # K - phone_number
         buyer.bank or "",  # L - bank
-        str(buyer.amount) if buyer.amount else "",  # M - amount
-        buyer.username or "",  # N - username
-        "ДА" if buyer.is_superbanking_paid else "",  # O - is_superbanking_paid
-        buyer.is_paid_manually,  # P - is_paid_manually
+        str(buyer.amount) if buyer.amount else "",  # M - полная цена заказа со скриншота
+        str(buyer.cashback_percent),  # N - процент кэшбека, зафиксированный в заявке
+        "" if cashback_amount is None else str(cashback_amount),  # O - сумма кэшбека к выплате клиенту
+        buyer.username or "",  # P - username
+        "ДА" if buyer.is_superbanking_paid else "",  # Q - is_superbanking_paid
+        buyer.is_paid_manually,  # R - is_paid_manually (чекбокс)
     ]
 
 

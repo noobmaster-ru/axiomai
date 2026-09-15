@@ -54,6 +54,10 @@ class CreateBuyer:
             username=username,
             fullname=fullname,
             nm_id=article.nm_id,
+            # Условия фиксируются на момент создания заявки: позже селлер может поменять их в таблице,
+            # но для этого клиента процент и инструкция уже не изменятся
+            cashback_percent=article.cashback_percent,
+            instruction_text=article.instruction_text,
             chat_history=chat_history or [],
         )
 

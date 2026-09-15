@@ -227,6 +227,8 @@ def buyer_factory(session, cabinet_factory):
         phone_number: str | None = None,
         bank: str | None = None,
         amount: int | None = None,
+        cashback_percent: int = 100,
+        instruction_text: str = "Test Instruction",
         chat_history: list[dict] | None = None,
         updated_at: datetime | None = None,
     ) -> Buyer:
@@ -246,6 +248,8 @@ def buyer_factory(session, cabinet_factory):
             phone_number=phone_number,
             bank=bank,
             amount=amount,
+            cashback_percent=cashback_percent,
+            instruction_text=instruction_text,
             chat_history=chat_history if chat_history is not None else [{"role": "user", "text": "hi"}],
         )
         session.add(buyer)

@@ -46,6 +46,7 @@ async def _make_buyer(session, cabinet_factory, telegram_id: int, amount: int | 
         telegram_id=telegram_id,
         nm_id=777,
         amount=amount,
+        cashback_percent=100,
         phone_number=None,
         bank=None,
     )

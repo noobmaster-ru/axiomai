@@ -19,7 +19,7 @@ from axiomai.infrastructure.database.gateways.buyer import BuyerGateway
 from axiomai.infrastructure.database.gateways.cabinet import CabinetGateway
 from axiomai.infrastructure.database.gateways.cashback_table_gateway import CashbackTableGateway
 from axiomai.infrastructure.database.transaction_manager import TransactionManager
-from axiomai.infrastructure.kie import ClassifyOrderResult, KieGateway
+from axiomai.infrastructure.kie import ClassifyOrderResult, KieGateway, build_instruction_text
 from axiomai.infrastructure.message_debouncer import MessageData, MessageDebouncer, TaskStrategy
 from axiomai.infrastructure.telegram.common import mark_business_message_read, telegram_photo_to_data_url
 from axiomai.infrastructure.telegram.dialogs.cashback_article.common import (
@@ -123,12 +123,14 @@ async def _process_order_screenshot_background(  # noqa: PLR0912, PLR0915, C901
 
     pending_nm_ids = get_pending_nm_ids_for_step(buyers, step="check_order")
     pending_articles = [a for a in articles if a.nm_id in pending_nm_ids]
+    pending_buyers = [b for b in buyers if b.nm_id in pending_nm_ids]
 
     result: ClassifyOrderResult | None = None
     try:
         result = await openai_gateway.classify_order_screenshot(
             photo_data_url=await telegram_photo_to_data_url(bot, photo_file_id),
             articles=pending_articles,
+            instruction_text=build_instruction_text(pending_buyers),
         )
     except Exception as e:
         logger.exception("classify order screenshot error", exc_info=e)

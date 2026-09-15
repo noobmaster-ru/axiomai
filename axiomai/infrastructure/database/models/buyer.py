@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import TIMESTAMP, BigInteger, ForeignKey, Index, String, func
+from sqlalchemy import TIMESTAMP, BigInteger, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,7 +34,17 @@ class Buyer(Base):
 
     phone_number: Mapped[str | None] = mapped_column(String(32), comment="Номер телефона для выплаты")
     bank: Mapped[str | None] = mapped_column(String(128), comment="Название банка")
-    amount: Mapped[int | None] = mapped_column(comment="Сумма кешбека в рублях")
+    amount: Mapped[int | None] = mapped_column(
+        comment="Цена заказа со скриншота в рублях; кэшбек к выплате = amount × cashback_percent / 100"
+    )
+    # Условия фиксируются при создании заявки: правка процента/инструкции в гугл-таблице
+    # меняет только артикул и новых клиентов, а не тех, кто уже начал сценарий
+    cashback_percent: Mapped[int] = mapped_column(
+        comment="Процент кэшбека, зафиксированный при создании заявки (из артикула на тот момент)"
+    )
+    instruction_text: Mapped[str] = mapped_column(
+        Text, default="", comment="Инструкция артикула, зафиксированная при создании заявки"
+    )
 
     is_canceled: Mapped[bool] = mapped_column(default=False, comment="Заявка отменена покупателем")
 
